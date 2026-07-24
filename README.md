@@ -159,7 +159,7 @@ colcon build \
         myarm_m750_msgs \
         myarm_m750_description \
         myarm_m750_visualization \
-        myarm_m750_gazebo \
+        myarm_m750_gazebo 
 source install/setup.bash
 ```
 

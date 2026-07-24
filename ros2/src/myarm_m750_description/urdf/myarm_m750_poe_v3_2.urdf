@@ -60,13 +60,13 @@
     <visual name="base_link_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/base_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/base_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="base_link_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/base_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/base_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -75,13 +75,13 @@
     <visual name="shoulder_link_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/shoulder_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/shoulder_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="shoulder_link_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/shoulder_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/shoulder_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -90,13 +90,13 @@
     <visual name="upper_arm_link_visual">
       <origin xyz="0 0 0" rpy="1.570796326794897 -1.570796326794897 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/upper_arm_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/upper_arm_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="upper_arm_link_collision">
       <origin xyz="0 0 0" rpy="1.570796326794897 -1.570796326794897 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/upper_arm_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/upper_arm_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -105,13 +105,13 @@
     <visual name="lower_arm_link_visual">
       <origin xyz="0 0 0" rpy="-1.570796326794897 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/lower_arm_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/lower_arm_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="lower_arm_link_collision">
       <origin xyz="0 0 0" rpy="-1.570796326794897 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/lower_arm_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/lower_arm_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -120,13 +120,13 @@
     <visual name="forearm_link_visual">
       <origin xyz="-0.009 0 0" rpy="-3.141592653589793 -1.570796326794897 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/forearm_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/forearm_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="forearm_link_collision">
       <origin xyz="-0.009 0 0" rpy="-3.141592653589793 -1.570796326794897 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/forearm_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/forearm_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -135,13 +135,13 @@
     <visual name="wrist_link_visual">
       <origin xyz="0 0 0" rpy="-1.570796326794897 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/wrist_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/wrist_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="wrist_link_collision">
       <origin xyz="0 0 0" rpy="-1.570796326794897 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/wrist_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/wrist_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -153,13 +153,13 @@
     <visual name="gripper_base_link_visual">
       <origin xyz="0 0 -0.0427" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/gripper_base_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/gripper_base_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="gripper_base_link_collision">
       <origin xyz="0 0 -0.0427" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/gripper_base_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/gripper_base_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -168,13 +168,13 @@
     <visual name="left_gripper_link_visual">
       <origin xyz="0 -0.0079 0" rpy="0 3.141592653589793 -1.570796326794897"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/left_gripper_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/left_gripper_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="left_gripper_link_collision">
       <origin xyz="0 -0.0079 0" rpy="0 3.141592653589793 -1.570796326794897"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/left_gripper_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/left_gripper_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
@@ -183,13 +183,13 @@
     <visual name="right_gripper_link_visual">
       <origin xyz="0 -0.0079 0" rpy="0 3.141592653589793 -1.570796326794897"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/right_gripper_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/right_gripper_link.dae" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision name="right_gripper_link_collision">
       <origin xyz="0 -0.0079 0" rpy="0 3.141592653589793 -1.570796326794897"/>
       <geometry>
-        <mesh filename="package://mycobot_description/urdf/myarm_m750/meshes/right_gripper_link.dae" scale="1 1 1"/>
+        <mesh filename="package://myarm_m750_description/urdf/meshes/right_gripper_link.dae" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
