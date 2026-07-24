@@ -1,0 +1,3 @@
+-r base.txt
+# Optional non-ROS simulation backend.
+mujoco>=2.3

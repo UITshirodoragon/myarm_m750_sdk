@@ -1,0 +1,10 @@
+sdk:
+  config_files:
+    robot: robot_m750.yaml
+    safety: safety.yaml
+    logging: logging.yaml
+
+  adapter:
+    type: mock
+    options:
+      initial_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

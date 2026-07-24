@@ -1,0 +1,73 @@
+---
+title: "MyArm M750 SDK — Design index"
+format:
+  html:
+    toc: true
+---
+
+# Mục tiêu
+
+SDK cung cấp lớp controller giữa application, ROS 2 và hardware MyArm M750.
+Thiết kế ưu tiên một critical path nhỏ, test được và trace được thay vì phát
+triển đồng thời toàn bộ planning, simulation và camera stack.
+
+# Tài liệu
+
+1. `01-kien-truc-va-pham-vi.qmd`: dependency direction, hybrid deployment và scope.
+2. `02-repository-config-camera.qmd`: repository layout, config ownership,
+   requirements profiles và camera standalone/ROS bridge.
+3. `03-lo-trinh-va-nghiem-thu.qmd`: roadmap, benchmark và acceptance gates.
+4. `../development/clean-code-clean-comment-robotics.qmd`: coding/review standard.
+5. `../../AGENTS.md`: contract rút gọn cho coding agent và contributor.
+6. `../../plans.md`: kế hoạch task/version đang hoạt động.
+
+# Critical path hiện tại
+
+```text
+Application / ROS 2 bridge
+            ↓
+       RobotSession API
+            ↓
+controller + MotionGuard + trajectory executor
+            ↓
+       RobotHardwarePort
+            ↓
+mock / replay / vendor serial adapter
+```
+
+Camera có critical path riêng:
+
+```text
+CameraSession API
+       ↓
+CameraPipeline
+       ↓
+CameraCapturePort
+       ↓
+mock / OpenCV / future native adapter
+```
+
+Hai path có thể cùng chạy nhưng camera fault không được tự động fault robot
+controller.
+
+# Quan hệ ROS 2 và Python Core
+
+```text
+ROS 2 = deployment/integration layer + Python Core
+Python Core = standalone package, không cần ROS 2
+```
+
+ROS 2 package được phép import public API của Python Core. Chiều ngược lại bị
+cấm. Điều này cho phép:
+
+- Jetson chạy driver, planning local, camera và safety;
+- Host PC chạy RViz2/visualization qua LAN;
+- script Python, unit test, benchmark hoặc camera pipeline chạy không cần ROS 2.
+
+# Bất biến động học
+
+- URDF/TF/MoveIt/PoE dùng `q_ros`.
+- Firmware dùng `q_real`.
+- Mapping chỉ ở hardware adapter.
+- `flange_link` là đầu cuối chuỗi 6R; `tool0` là fixed configurable TCP.
+- Pose software được tính từ joint state; không tin tuyệt đối `get_coords()` firmware.

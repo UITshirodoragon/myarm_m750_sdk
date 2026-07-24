@@ -1,0 +1,7 @@
+myarm_m750_camera_bridge:
+  ros__parameters:
+    core_camera_config_file: pycore/config/camera/cameras.yaml
+    publish_camera_info: true
+    diagnostics_rate_hz: 1.0
+    reconnect_enabled: true
+    reconnect_interval_s: 2.0

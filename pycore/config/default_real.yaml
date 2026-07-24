@@ -1,0 +1,16 @@
+sdk:
+  config_files:
+    robot: robot_m750.yaml
+    safety: safety.yaml
+    logging: logging.yaml
+
+  adapter:
+    type: vendor_serial
+    options:
+      port: /dev/ttyUSB0
+      baudrate: 1000000
+      timeout_s: 0.1
+      firmware_speed: 30
+      max_retries: 1
+      retry_delay_s: 0.05
+      debug: false

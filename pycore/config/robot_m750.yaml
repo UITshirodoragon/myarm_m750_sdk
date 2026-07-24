@@ -1,0 +1,46 @@
+robot:
+  name: myarm_m750
+  joint_names:
+    - shoulder_pan_joint
+    - shoulder_lift_joint
+    - elbow_flex_joint
+    - forearm_roll_joint
+    - wrist_flex_joint
+    - wrist_roll_joint
+
+  units:
+    core_angle: radian
+    firmware_angle: degree
+    core_position: meter
+    firmware_position: millimeter
+
+  model:
+    # The supplied PoE-compatible URDF is the single kinematic source of truth.
+    urdf_path: ../../ros2/src/myarm_m750_description/urdf/myarm_m750_poe_v3_2.urdf
+    base_link: base_link
+    end_link: tool0
+
+  joint_mapping:
+    shoulder_pan_joint:
+      offset_degree: 0.0
+      direction: 1
+    shoulder_lift_joint:
+      offset_degree: 10.0
+      direction: 1
+    elbow_flex_joint:
+      offset_degree: -10.0
+      direction: 1
+    forearm_roll_joint:
+      offset_degree: 0.0
+      direction: 1
+    wrist_flex_joint:
+      offset_degree: 0.0
+      direction: 1
+    wrist_roll_joint:
+      offset_degree: 0.0
+      direction: 1
+
+  runtime:
+    command_rate_hz: 5.0
+    state_rate_hz: 5.0
+    realtime_execution: false

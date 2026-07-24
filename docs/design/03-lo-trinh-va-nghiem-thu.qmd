@@ -1,0 +1,112 @@
+---
+title: "Lộ trình và tiêu chí nghiệm thu"
+format:
+  html:
+    toc: true
+---
+
+# Nguyên tắc phát triển
+
+Mỗi phase phải chạy được độc lập, có unit test và acceptance gate. Thư mục hoặc
+interface tồn tại không đồng nghĩa tính năng đã nghiệm thu.
+
+# Phase A — Python Core
+
+- Public API.
+- Domain/value objects.
+- Ports/adapters.
+- YAML config validation.
+- Error taxonomy, structured log và state machine.
+- Mock/replay trước vendor hardware.
+
+**Gate:** application không gọi vendor API; core chạy khi không cài ROS 2.
+
+# Phase B — Kinematics, trajectory và safety
+
+- URDF PoE canonical.
+- FK/IK/Jacobian.
+- Joint/workspace/singularity/stale-state guard.
+- Cubic trajectory, timeout, stop/cancel và 5 Hz initial execution.
+
+**Gate:** command không bypass validator/executor/hardware port.
+
+# Phase C — Camera standalone
+
+- Hardware-based YAML naming.
+- Camera capture port.
+- Mock và optional OpenCV adapter.
+- Một/hai camera lifecycle độc lập.
+- FPS/drop/timeout/reconnect diagnostics.
+- Calibration contract.
+
+**Gate:** pipeline chạy không ROS 2; camera fault không fault robot core.
+
+# Phase D — ROS 2 và RViz2
+
+- Driver, JointState, diagnostics và FollowJointTrajectory.
+- robot_state_publisher, TF/TF static.
+- Host RViz2 target/trajectory markers.
+- Camera ROS bridge và Host image view.
+- WLAN/DDS measurement.
+
+**Gate:** Jetson giữ execution/safety; Host mất kết nối không làm mất local control.
+
+# Phase E — MoveIt 2
+
+- SRDF, planning group, joint limits, kinematics config.
+- Plan/validate local trên Jetson.
+- Visualize trên Host.
+- Execute mock trước robot thật.
+
+# Phase F — Simulation và C++
+
+- Gazebo Classic/MuJoCo adapters theo port contract.
+- C++/`ros2_control` chỉ khi benchmark cho thấy Python bottleneck.
+
+# Benchmark
+
+| ID | Nội dung |
+|---|---|
+| B0 | protocol success, timeout, invalid frame, reconnect |
+| B1 | joint waypoint final error, repeatability, drift, approach direction |
+| B2 | FK/IK consistency, iterations, seed sensitivity, singularity score |
+| B3 | safe-fail: limits, stale state, unreachable, disconnect, timeout |
+| B4 | line, rectangle, arc, orientation-changing và spherical path ×20 |
+| B5 | ROS 2/WLAN: rate, jitter, TF delay, action latency, packet loss |
+| B6 | camera: FPS, drops, timeout, reconnect, one/two-camera operation |
+
+# Acceptance 0.1.1
+
+| Nhóm | Tiêu chí |
+|---|---|
+| Layout | Physical folder structure đúng contract và có regression test |
+| Packaging | `pip install -e pycore` cung cấp `myarm_m750_core` namespace |
+| Standalone | Robot mock/FK/IK/camera mock không cần ROS 2 |
+| Hybrid | ROS 2 chỉ phụ thuộc core theo một chiều |
+| Requirements | Có profile base/dev/camera/serial/simulation/ROS 2 |
+| Camera | Hardware name, role, serial và device path tách riêng |
+| Testing | Unit tests + release verification đạt |
+| Agent support | `AGENTS.md`, `agent.md`, `plans.md` tồn tại và cùng kiến trúc |
+| Documentation | README, design docs, changelog và version đồng bộ |
+
+Các mục cần chạy ngoài môi trường release:
+
+- ROS 2 Foxy graph/build trên Jetson/Host;
+- webcam Logitech thật;
+- robot thật low-amplitude smoke test;
+- WLAN/DDS benchmark.
+
+# ADR khóa
+
+```text
+ADR-001: ROS 2 deployment depends on ROS-independent Python Core.
+ADR-002: Python Core never depends on ROS 2.
+ADR-003: Core uses SI units and q_ros canonical coordinates.
+ADR-004: Firmware mapping belongs only to hardware adapter.
+ADR-005: Physical source layout is short; installed namespaces remain explicit.
+ADR-006: Camera capture is core capability; ROS camera is a bridge.
+ADR-007: Robot and camera faults remain separate unless application policy joins them.
+ADR-008: Optional dependencies are installed by use-case profiles.
+ADR-009: RViz2 Host visualization is prioritized before full simulation.
+ADR-010: C++ migration requires benchmark evidence.
+```

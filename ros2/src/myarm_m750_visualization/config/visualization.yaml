@@ -1,0 +1,7 @@
+visualization:
+  fixed_frame: base_link
+  displays:
+    robot_model: true
+    tf: true
+    target_pose: true
+    trajectory: true

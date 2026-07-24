@@ -1,0 +1,653 @@
+---
+title: "Clean Code & Clean Comment cho Robotics, Firmware và ROS2"
+description: "Checklist đối chiếu khi viết, review và refactor code tầng firmware, MCU, driver, ROS2 controller và kinematics."
+categories: [software-engineering, clean-code, clean-comment, firmware, mcu, ros2, robotics, controller, myarm-m750]
+status: draft
+version: "0.1.1"
+author: "Nguyen Hoang Dang Khoa"
+date: last-modified
+date-format: "DD/MM/YYYY HH:mm:ssZ[Z]"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-copy: true
+    code-fold: false
+    smooth-scroll: true
+    callout-appearance: default
+execute:
+  freeze: auto
+---
+
+# Mục tiêu
+
+Tài liệu này dùng như một bảng đối chiếu khi phát triển phần mềm robot, đặc biệt cho các tầng:
+
+- firmware/MCU style code;
+- hardware driver;
+- serial protocol adapter;
+- ROS2 node;
+- kinematics/control layer;
+- benchmark/test code.
+
+Nguyên tắc nền: **code phải dễ đọc bởi người khác trước khi tối ưu cho máy chạy**. Comment không dùng để che code khó hiểu. Comment tốt bổ sung thông tin mà code không tự nói được: **ý định, ràng buộc, quyết định kỹ thuật, cảnh báo, workaround, nguồn tham khảo, bug lịch sử, phần chưa hoàn chỉnh**.
+
+::: {.callout-note}
+## Tinh thần firmware/MCU tôi muốn giữ lại
+
+Phong cách firmware/MCU tốt thường có các đặc điểm: rõ ràng, trực tiếp, ít magic, gần phần cứng, đặt tên theo register/bit/state rõ ràng, comment giải thích ràng buộc thời gian/phần cứng, không trừu tượng quá mức, và dễ trace từ input đến output.
+:::
+
+# Rule hierarchy
+
+Khi có mâu thuẫn giữa các rule, ưu tiên theo thứ tự:
+
+1. **Safety/correctness**: không làm robot di chuyển sai, vượt giới hạn, treo driver, hoặc gây trạng thái không xác định.
+2. **Traceability**: có thể truy vết từ command → validation → protocol → hardware response → state feedback.
+3. **Readability**: người mới trong team đọc được mà không cần hỏi tác giả.
+4. **Consistency**: code cùng project phải có style thống nhất.
+5. **Local convention**: tuân thủ style của package/repo đang sửa.
+6. **Personal preference**: chỉ dùng khi không ảnh hưởng các mục trên.
+
+# Clean Code Rules
+
+## 1. Tên phải mang domain và đơn vị
+
+Không nên dùng tên quá ngắn cho biến domain quan trọng.
+
+```python
+# Bad
+q = solver.solve(p)
+v = 0.5
+```
+
+```python
+# Good
+target_joint_rad = solver.solve(target_pose_base)
+max_joint_velocity_rad_s = 0.5
+```
+
+Với robotics, nên đưa đơn vị vào tên biến khi có khả năng nhầm lẫn:
+
+- `_rad`, `_deg`;
+- `_m`, `_mm`;
+- `_s`, `_ms`, `_hz`;
+- `_rad_s`, `_rad_s2`;
+- `_tick`, `_count`;
+- `_frame`, `_topic`, `_qos`.
+
+## 2. Không dùng magic number cho giới hạn vật lý
+
+```cpp
+// Bad
+if (std::abs(delta_q) > 0.08) {
+  delta_q = std::copysign(0.08, delta_q);
+}
+```
+
+```cpp
+// Good
+constexpr double kMaxJointStepRad = 0.08;
+
+if (std::abs(delta_q_rad) > kMaxJointStepRad) {
+  delta_q_rad = std::copysign(kMaxJointStepRad, delta_q_rad);
+}
+```
+
+Magic number được chấp nhận khi bản thân nó là hằng toán học hiển nhiên trong ngữ cảnh, ví dụ `0`, `1`, `2`, hoặc `M_PI`, nhưng vẫn nên cẩn thận trong code safety.
+
+## 3. Hàm nhỏ, một mức trừu tượng
+
+Một hàm không nên vừa đọc serial, decode packet, validate limit, solve IK, publish ROS topic và ghi log.
+
+```python
+# Better: mỗi bước có tên riêng, dễ test riêng.
+packet = transport.read_packet()
+feedback = protocol.decode_feedback(packet)
+validated_feedback = joint_limits.validate_feedback(feedback)
+state_publisher.publish(validated_feedback)
+```
+
+Rule thực dụng: nếu không thể đặt tên hàm rõ ràng mà không dùng chữ `and`, hàm đó có thể đang làm quá nhiều việc.
+
+## 4. Tách computation khỏi side effect
+
+```python
+# Bad: tên là compute nhưng lại gửi lệnh xuống robot.
+def compute_ik(self, pose):
+    joint_target = self.solver.solve(pose)
+    self.driver.write(joint_target)
+    return joint_target
+```
+
+```python
+# Good
+def compute_ik(self, pose: CartesianPose) -> IkResult:
+    return self.solver.solve(pose)
+
+def execute_joint_target(self, target: JointTarget) -> MotionResult:
+    return self.driver.write(target)
+```
+
+Tên hàm nên phản ánh side effect:
+
+- `compute_*`, `estimate_*`, `solve_*`: không gây side effect;
+- `validate_*`: trả kết quả kiểm tra, không tự sửa trừ khi tên là `clamp_*` hoặc `normalize_*`;
+- `send_*`, `write_*`, `execute_*`, `publish_*`: có side effect;
+- `read_*`, `poll_*`: đọc từ hardware/system;
+- `reset_*`, `clear_*`: thay đổi state nội bộ.
+
+## 5. Boundary condition phải tập trung một chỗ
+
+Không rải joint limit, speed limit, workspace limit ở nhiều file.
+
+```text
+myarm_m750_control/
+├── joint_limits.hpp
+├── safety_limits.hpp
+├── trajectory_validator.hpp
+└── motion_guard.hpp
+```
+
+Các boundary nên có API rõ ràng:
+
+```cpp
+ValidationResult validateJointTarget(const JointTarget& target);
+JointTarget clampJointTarget(const JointTarget& target);
+bool isNearSingularity(const JointState& state);
+```
+
+## 6. Tránh flag argument
+
+```python
+# Bad
+def move_to(target, use_ik: bool):
+    ...
+```
+
+```python
+# Good
+def move_to_joint_target(target: JointTarget) -> MotionResult:
+    ...
+
+def move_to_cartesian_pose(pose: CartesianPose) -> MotionResult:
+    ...
+```
+
+Flag argument làm một hàm có hai hành vi, khó test và dễ phát sinh nhánh ẩn.
+
+## 7. Dùng value object thay vì primitive rời rạc
+
+```python
+# Bad
+send_pose(x, y, z, roll, pitch, yaw, speed)
+```
+
+```python
+# Good
+@dataclass(frozen=True)
+class CartesianPose:
+    position_m: np.ndarray
+    orientation_quat_xyzw: np.ndarray
+    frame_id: str
+
+@dataclass(frozen=True)
+class MotionProfile:
+    max_velocity_rad_s: float
+    max_acceleration_rad_s2: float
+
+send_pose(target_pose, motion_profile)
+```
+
+Các value object nên có trong dự án MyArm M750:
+
+- `JointState`;
+- `JointTarget`;
+- `CartesianPose`;
+- `MotionProfile`;
+- `IkRequest`;
+- `IkResult`;
+- `FkResult`;
+- `HardwareStatus`;
+- `SerialPacket`;
+- `SafetyViolation`.
+
+## 8. Tránh negative conditional
+
+```cpp
+// Bad
+if (!result.failed()) {
+  executeNextStep();
+}
+```
+
+```cpp
+// Good
+if (result.succeeded()) {
+  executeNextStep();
+}
+```
+
+Trong safety code, `not unsafe`, `not invalid`, `not failed` dễ đọc nhầm. Nên ưu tiên predicate dương: `isValid`, `isSafe`, `succeeded`, `isReady`.
+
+## 9. State machine phải explicit
+
+Firmware, driver và ROS2 control node thường có state. Không nên để state ẩn trong nhiều boolean.
+
+```cpp
+// Bad
+bool connected_;
+bool homed_;
+bool moving_;
+bool error_;
+```
+
+```cpp
+// Good
+enum class DriverState {
+  kDisconnected,
+  kConnecting,
+  kIdle,
+  kExecuting,
+  kFault,
+};
+```
+
+State machine nên có transition rõ ràng:
+
+```cpp
+DriverState nextState(DriverState current, DriverEvent event);
+```
+
+## 10. Dependency direction phải rõ
+
+Driver không nên phụ thuộc ngược lên planner. Kinematics không nên gọi serial. ROS node nên đóng vai trò composition/integration, không chứa toàn bộ logic.
+
+```text
+application / behavior / benchmark
+        ↓
+planning / kinematics / controller
+        ↓
+hardware abstraction / driver
+        ↓
+transport / protocol / serial
+        ↓
+firmware / MCU
+```
+
+# Clean Comment Rules
+
+## 1. Comment không lặp lại code
+
+```c
+// Bad
+i = i + 1;  /* Add one to i. */
+```
+
+Comment này không thêm thông tin, chỉ tăng noise.
+
+## 2. Comment không thay cho tên biến xấu
+
+```cpp
+// Bad
+Node* n;  // best child node candidate
+```
+
+```cpp
+// Good
+Node* best_child_node_candidate;
+```
+
+Nếu comment chỉ để giải thích tên biến, hãy đổi tên biến.
+
+## 3. Comment nên giải thích intent/why
+
+```cpp
+constexpr double kMaxJointStepRad = 0.08;
+
+// Keep a single update below the observed MyArm M750 servo jump threshold.
+// Larger steps can be accepted by firmware but produce visible jerk.
+joint_target = clampJointStep(current_joint, requested_joint, kMaxJointStepRad);
+```
+
+Comment này có giá trị vì nó giải thích nguyên nhân kỹ thuật và hậu quả.
+
+## 4. Comment workaround phải có điều kiện xóa
+
+```cpp
+// Workaround(#42): The coordinate firmware sometimes acknowledges a target
+// near the workspace boundary without starting motion. Remove this retry path
+// after joint-space execution fully replaces coordinate mode.
+if (result.accepted_but_no_motion()) {
+  retry_once_with_equivalent_joint_target();
+}
+```
+
+Một workaround tốt nên có:
+
+- bug/issue id;
+- điều kiện kích hoạt;
+- hậu quả nếu xóa sai;
+- điều kiện để xóa trong tương lai.
+
+## 5. Comment cảnh báo phải nói hậu quả
+
+```c
+/* WARNING: Do not call from ISR. This function may block while waiting for
+ * the UART TX buffer and can break the 1 kHz control loop deadline.
+ */
+int myarm_uart_write_packet(const struct myarm_packet *packet);
+```
+
+Warning không nên chung chung kiểu `/* be careful */`. Hãy nói rõ vì sao nguy hiểm.
+
+## 6. Comment cho hardware/MCU nên nói rõ timing, register, bit và errata
+
+```c
+#define STATUS_MOTION_DONE_BIT  (1u << 3)
+
+/* The firmware raises MOTION_DONE before the arm fully settles. Keep a short
+ * settle window before sampling the final joint state for repeatability tests.
+ */
+static const uint32_t kSettleTimeMs = 120u;
+```
+
+Loại comment này rất có giá trị ở tầng thấp vì code không thể tự nói rõ hành vi vật lý.
+
+## 7. Comment nguồn thuật toán/công thức
+
+```cpp
+// Damped least-squares IK. See: Nakamura & Hanafusa, 1986.
+// Used here only near singularity; otherwise the nominal solver is preferred.
+q_delta = solveDampedLeastSquares(jacobian, pose_error, damping);
+```
+
+Nếu copy hoặc chuyển thể code/công thức từ nguồn ngoài, hãy ghi nguồn, version, và phần đã chỉnh sửa.
+
+## 8. TODO phải có owner hoặc issue
+
+```cpp
+// TODO(khoa, #58): Replace temporary Euler pose stress test with quaternion
+// interpolation after the path benchmark format is finalized.
+```
+
+Không nên:
+
+```cpp
+// TODO fix this later
+```
+
+## 9. Không comment-out code
+
+Code cũ nên xóa. Git đã làm nhiệm vụ lưu lịch sử. Nếu cần giữ vì lý do đặc biệt, hãy mở issue hoặc ghi rõ lý do trong commit/PR, không để block code chết trong source.
+
+# Comment taxonomy
+
+| Loại comment | Dùng khi nào | Ví dụ ngắn |
+|---|---|---|
+| Intent | Quyết định không hiển nhiên | `// Prefer joint target to avoid firmware IK ambiguity.` |
+| Constraint | Ràng buộc phần cứng/thời gian | `// Must finish before next 10 ms control tick.` |
+| Warning | Có hậu quả nếu gọi sai | `// WARNING: Blocking call; never use in realtime callback.` |
+| Workaround | Bug/errata/hành vi firmware | `// Workaround(#42): firmware ACK can arrive before motion.` |
+| Source | Công thức/thuật toán/chuẩn | `// Based on REP-103 frame convention.` |
+| TODO | Nợ kỹ thuật có tracking | `// TODO(khoa, #12): replace placeholder.` |
+| API contract | Public function/class | Doxygen/docstring |
+| Test rationale | Vì sao test tồn tại | `// Regression test for boundary pose failure.` |
+
+# Public API documentation
+
+## C/C++ Doxygen style
+
+```cpp
+/**
+ * @brief Validate a joint target before sending it to hardware.
+ *
+ * The validator checks joint limits, velocity step limits, and optional
+ * singularity margin. It does not send any command to the robot.
+ *
+ * @param target Target joint positions in radians.
+ * @param current Current joint state in radians.
+ * @return ValidationResult with status and first violation, if any.
+ */
+ValidationResult validateJointTarget(const JointTarget& target,
+                                     const JointState& current);
+```
+
+## Python docstring style
+
+```python
+def validate_joint_target(
+    target: JointTarget,
+    current: JointState,
+) -> ValidationResult:
+    """Validate a joint target before sending it to hardware.
+
+    Args:
+        target: Target joint positions in radians.
+        current: Current measured joint state in radians.
+
+    Returns:
+        Validation result with status and first violation, if any.
+
+    Side effects:
+        None. This function does not send commands to the robot.
+    """
+```
+
+Public API nên đủ rõ để người khác gọi hàm mà không cần đọc implementation.
+
+
+## 4. Comment phần cứng nên mô tả điều ngoài source code
+
+```c
+/* The device requires at least 2 ms after reset before accepting UART frames.
+ * Without this delay the first packet is randomly dropped on cold boot.
+ */
+myarm_delay_ms(2);
+```
+
+# ROS2-specific clean code/comment rules
+
+## 1. Node chỉ nên compose logic, không ôm toàn bộ domain
+
+```text
+myarm_m750_driver_node
+├── parameters
+├── publishers/subscribers/actions
+├── lifecycle/state bridge
+└── calls into driver/control classes
+```
+
+Không nên nhét toàn bộ serial codec, IK, FK, retry policy, benchmark logic vào một node class.
+
+## 2. Parameter phải có đơn vị và range
+
+```yaml
+myarm_m750_control:
+  ros__parameters:
+    control_rate_hz: 50.0        # Range: 10..100 Hz. Higher rates may saturate serial transport.
+    max_joint_step_rad: 0.08     # Per control cycle safety clamp.
+    command_timeout_ms: 250      # Driver fault if no ACK within this window.
+```
+
+## 3. Callback không được block nếu ảnh hưởng control loop
+
+```cpp
+// WARNING: This timer callback runs the command path. Keep it bounded and do
+// not perform blocking serial reads here.
+void controlTimerCallback();
+```
+
+## 4. QoS/frame/topic comment nên ghi ở interface boundary
+
+```cpp
+// Publishes measured joint state, not commanded state. Consumers must not use
+// this topic as proof that the last command was accepted by firmware.
+joint_state_pub_ = create_publisher<sensor_msgs::msg::JointState>(
+    "/myarm_m750/joint_states", qos_sensor_data);
+```
+
+## 5. Frame convention phải được ghi gần code chuyển đổi pose
+
+```cpp
+// Input pose is expressed in base_link. The firmware coordinate API uses its
+// own base convention, so conversion must happen exactly once at this boundary.
+FirmwarePose convertRosPoseToFirmwarePose(const geometry_msgs::msg::Pose& pose);
+```
+
+# Review checklist
+
+## Per-file checklist
+
+- File có một trách nhiệm rõ không?
+- Tên file/class/function có phản ánh domain không?
+- Có phụ thuộc ngược tầng không?
+- Có magic number phần cứng không?
+- Có constant/parameter cho giới hạn vật lý không?
+- Comment có còn đúng với code không?
+- Comment có giải thích why/constraint/warning/workaround/source không?
+- Có block code bị comment-out không?
+
+## Per-function checklist
+
+- Hàm có làm một việc không?
+- Tên hàm có nói rõ side effect không?
+- Argument có quá nhiều primitive không?
+- Có flag argument không?
+- Có negative conditional khó đọc không?
+- Boundary condition có được gom lại không?
+- Hàm public có docstring/Doxygen đủ để gọi không?
+- Return value/exception/error code có rõ không?
+
+## Robot safety checklist
+
+- Lệnh hardware đã qua validate chưa?
+- Đơn vị đã rõ chưa?
+- Frame đã rõ chưa?
+- Timeout/retry có giới hạn không?
+- Callback realtime có tránh block không?
+- Workaround firmware có issue/comment không?
+- Test regression có tồn tại cho bug đã fix không?
+
+# Example: C firmware style
+
+## Bad
+
+```c
+void send(int a, int b)
+{
+    // send command
+    uart_write(0xff);
+    uart_write(a);
+    uart_write(b);
+    uart_write(a + b);
+}
+```
+
+## Better
+
+```c
+#define MYARM_FRAME_HEADER      0xFFu
+#define MYARM_CMD_SET_JOINT    0x21u
+
+static uint8_t myarm_checksum(uint8_t command, uint8_t payload)
+{
+    return (uint8_t)(command + payload);
+}
+
+int myarm_send_joint_command(uint8_t joint_id, uint8_t target_tick)
+{
+    /* Packet format is defined by the firmware protocol:
+     * [header][command][joint_id][target_tick][checksum]
+     */
+    uart_write(MYARM_FRAME_HEADER);
+    uart_write(MYARM_CMD_SET_JOINT);
+    uart_write(joint_id);
+    uart_write(target_tick);
+    uart_write(myarm_checksum(MYARM_CMD_SET_JOINT, target_tick));
+
+    return MYARM_OK;
+}
+```
+
+# Example: C++ ROS2 driver boundary
+
+```cpp
+class MyArmM750SerialDriver
+{
+public:
+  /**
+   * @brief Send a validated joint target to the firmware.
+   *
+   * This function does not run IK and does not clamp limits. Callers must pass
+   * a target that has already been validated by MotionGuard.
+   */
+  MotionResult writeJointTarget(const JointTarget& target);
+
+private:
+  SerialTransport transport_;
+  MyArmPacketCodec codec_;
+};
+```
+
+# Example: Python kinematics layer
+
+```python
+class PinocchioKinematics:
+    """FK/IK service for MyArm M750 model.
+
+    This class owns only kinematic computation. It does not publish ROS topics
+    and does not send commands to hardware.
+    """
+
+    def compute_fk(self, joint_state: JointState) -> CartesianPose:
+        """Compute end-effector pose from measured joint state."""
+        ...
+```
+
+# CI/Linting suggestion
+
+For ROS2 packages, enforce style through CI rather than relying only on human review:
+
+```xml
+<test_depend>ament_lint_auto</test_depend>
+<test_depend>ament_lint_common</test_depend>
+```
+
+```cmake
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+endif()
+```
+
+Recommended checks:
+
+- C/C++: `clang-format`, `clang-tidy`, `cppcheck`, `ament_cpplint`.
+- Python: `ruff` or `flake8`, `mypy` where useful, `pydocstyle` for public APIs.
+- ROS2: `ament_lint_auto`, `ament_lint_common`.
+- Documentation: Doxygen for C/C++, docstrings for Python.
+
+# Final heuristic
+
+Use this mental model:
+
+- **Tên tốt** thay cho comment thừa.
+- **Function nhỏ** thay cho comment giải thích code rối.
+- **Value object** thay cho primitive rời rạc.
+- **Boundary class** thay cho limit rải rác.
+- **Comment tốt** chỉ giữ phần code không thể tự nói: why, constraint, warning, workaround, source, TODO.
+
+# References
+
+- PEP 8 – Style Guide for Python Code: https://peps.python.org/pep-0008/
+- Google C++ Style Guide – Comments: https://google.github.io/styleguide/cppguide.html#Comments
+- Google Python Style Guide – Comments and Docstrings: https://google.github.io/styleguide/pyguide.html
+- C++ Core Guidelines: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
+- Linux kernel coding style: https://www.kernel.org/doc/html/latest/process/coding-style.html
+- Zephyr Project C Code and General Style Guidelines: https://docs.zephyrproject.org/latest/contribute/style/code.html
+- Doxygen manual – Documenting the code: https://www.doxygen.nl/manual/docblocks.html
+- ROS2 Quality Guide: https://docs.ros.org/en/foxy/The-ROS2-Project/Contributing/Quality-Guide.html
+- ament_lint_common documentation: https://docs.ros.org/en/rolling/p/ament_lint_common/
+- Barr Group Embedded C Coding Standard: https://barrgroup.com/embedded-systems/books/embedded-c-coding-standard/

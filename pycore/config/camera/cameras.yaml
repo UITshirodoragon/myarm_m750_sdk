@@ -1,0 +1,36 @@
+cameras:
+  logitech_c922_01:
+    enabled: true
+    hardware_model: Logitech C922
+    hardware_serial: SERIAL_CAMERA_01
+    role: wrist
+    device:
+      by_id: /dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C922_SERIAL_CAMERA_01-video-index0
+      fallback_path: /dev/video0
+    stream:
+      width: 640
+      height: 480
+      fps: 30
+      pixel_format: mjpeg
+    frames:
+      camera_frame: logitech_c922_01_link
+      optical_frame: logitech_c922_01_optical_frame
+    calibration_file: calibration/logitech_c922_01.yaml
+
+  logitech_c922_02:
+    enabled: false
+    hardware_model: Logitech C922
+    hardware_serial: SERIAL_CAMERA_02
+    role: shoulder
+    device:
+      by_id: /dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C922_SERIAL_CAMERA_02-video-index0
+      fallback_path: /dev/video2
+    stream:
+      width: 1280
+      height: 720
+      fps: 30
+      pixel_format: mjpeg
+    frames:
+      camera_frame: logitech_c922_02_link
+      optical_frame: logitech_c922_02_optical_frame
+    calibration_file: calibration/logitech_c922_02.yaml

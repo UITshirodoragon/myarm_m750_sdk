@@ -1,0 +1,147 @@
+---
+title: "Kiến trúc hybrid và phạm vi SDK"
+format:
+  html:
+    toc: true
+---
+
+# Kiến trúc
+
+SDK dùng layered architecture kết hợp Ports & Adapters:
+
+```text
+Application / behavior / benchmark / ROS 2 node
+                       ↓
+                  Public API
+                       ↓
+             Application services
+                       ↓
+          Domain + Runtime + Diagnostics
+                       ↓
+                     Ports
+                       ↓
+                   Adapters
+                       ↓
+       firmware / camera / replay / simulator
+```
+
+## Dependency rules
+
+- `domain`: value object, pure computation, kinematics và safety rule.
+- `application`: use case orchestration; không biết `rclpy` hoặc vendor protocol.
+- `ports`: interface nhỏ, stable, testable.
+- `adapters`: side effect với serial, camera, replay hoặc simulator.
+- `runtime`: config loading, executor và state machine.
+- `diagnostics`: logging/metrics format, không điều khiển robot.
+- `api`: bề mặt ổn định cho application và ROS 2 package.
+
+Không cho phép:
+
+```text
+Domain → ROS 2
+Domain → serial/camera
+Application → raw pymycobot
+Python Core → rclpy
+Kinematics → hardware adapter
+```
+
+# Hai chế độ chạy
+
+## Python Core standalone
+
+Dùng cho:
+
+- public robot API với mock/replay/robot thật;
+- software FK/IK/Jacobian;
+- safety và trajectory execution;
+- benchmark;
+- standalone camera acquisition/pipeline;
+- unit/integration test không cần ROS 2.
+
+## ROS 2 deployment
+
+ROS 2 thêm:
+
+- nodes, topic, service, action;
+- TF và robot_state_publisher;
+- diagnostics bridge;
+- RViz2 Host PC;
+- MoveIt 2, Gazebo và custom interfaces theo phase.
+
+ROS 2 node phải compose core, không sao chép controller/kinematics/camera logic.
+
+# Public API
+
+Robot:
+
+```python
+with RobotSession.from_config("pycore/config/default.yaml") as robot:
+    state = robot.get_state()
+    result = robot.move_joints(target=[...], duration_s=4.0)
+```
+
+Camera:
+
+```python
+with CameraSession.from_config(
+    "pycore/config/camera/cameras.yaml",
+    "logitech_c922_01",
+) as camera:
+    frame = camera.read_one(timeout_s=1.0)
+```
+
+OpenCV là optional adapter. Control-only environment không cần cài camera dependency.
+
+# Runtime ownership
+
+Robot runtime dùng explicit state machine:
+
+```text
+DISCONNECTED → CONNECTING → IDLE → EXECUTING
+                         ↘ RECOVERING / FAULT
+```
+
+Camera lifecycle độc lập:
+
+```text
+CLOSED → OPEN → READING → CLOSED
+                 ↘ read timeout/error
+```
+
+Không dùng một state machine chung cho robot và camera vì hai subsystem có
+fault semantics khác nhau.
+
+# Dữ liệu và đơn vị
+
+| Đại lượng | Core |
+|---|---|
+| Joint position | rad |
+| Joint velocity | rad/s |
+| Translation | m |
+| Time | s |
+| Frequency | Hz |
+| Orientation | rotation matrix/quaternion; Euler chỉ ở high-level boundary |
+
+Tên biến/config phải mang unit khi có nguy cơ nhầm lẫn.
+
+# Phạm vi 0.1.1
+
+Bắt buộc:
+
+- Python Core package cài được bằng pip;
+- pure-Python unit tests;
+- requested physical repository layout;
+- robot mock/replay/vendor boundary;
+- PoE FK/IK/Jacobian và MotionGuard;
+- standalone camera contract + mock/OpenCV adapter;
+- ROS 2 package skeleton và RViz2 path từ 0.1.0;
+- requirements profiles, AGENTS và plans;
+- version/changelog/docs đồng bộ.
+
+Chưa nằm trong acceptance critical path:
+
+- MoveIt 2 execution hoàn chỉnh;
+- Gazebo control plugin;
+- ROS 2 camera acquisition node hoàn chỉnh;
+- robot thật, camera thật và ROS 2 graph acceptance trong môi trường release;
+- C++/`ros2_control`, torque hoặc dynamics control.

@@ -1,0 +1,7 @@
+logging:
+  level: INFO
+  console: true
+  file: ../../logs/myarm_m750_sdk.jsonl
+  max_bytes: 5000000
+  backup_count: 3
+  json_file: true

@@ -1,0 +1,8 @@
+benchmark:
+  name: t1_joint_waypoint_stability
+  repetitions: 20
+  duration_s: 4.0
+  settle_time_s: 1.0
+  waypoints_rad:
+    - [0.20, -0.20, 0.15, 0.10, -0.10, 0.15]
+    - [-0.15, 0.10, -0.10, -0.15, 0.15, -0.10]

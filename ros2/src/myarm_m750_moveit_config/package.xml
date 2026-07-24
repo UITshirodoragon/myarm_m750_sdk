@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>myarm_m750_moveit_config</name>
+  <version>0.1.1</version>
+  <description>MoveIt 2 configuration extension point for MyArm M750.</description>
+  <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
+  <license>LicenseRef-Proprietary</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>myarm_m750_description</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

@@ -1,0 +1,169 @@
+---
+title: "Repository, config, requirements và camera"
+format:
+  html:
+    toc: true
+---
+
+# Repository layout 0.1.1
+
+```text
+pycore/
+├── config/
+├── src/
+│   ├── api/
+│   ├── application/
+│   ├── domain/
+│   ├── ports/
+│   ├── adapters/
+│   ├── runtime/
+│   └── diagnostics/
+├── tests/
+└── pyproject.toml
+
+ros2/src/
+├── myarm_m750_description/
+├── myarm_m750_driver/
+├── myarm_m750_bringup/
+├── myarm_m750_visualization/
+├── myarm_m750_camera/
+├── myarm_m750_moveit_config/
+├── myarm_m750_gazebo/
+└── myarm_m750_msgs/
+```
+
+Physical directory ngắn không đổi ROS package name hoặc Python import namespace:
+
+| Physical path | Installed/logical name |
+|---|---|
+| `pycore/src/api` | `myarm_m750_core.api` |
+| `ros2/src/myarm_m750_driver` | `myarm_m750_driver` |
+| `ros2/src/myarm_m750_description` | `myarm_m750_description` |
+
+`pycore/pyproject.toml` là nơi khai báo explicit package mapping. Không thêm
+một lớp wrapper source khác nếu chưa có ADR.
+
+# Config ownership
+
+Config thuộc package/subsystem sử dụng và validate nó:
+
+```text
+pycore/config/
+├── default.yaml
+├── default_real.yaml
+├── default_replay.yaml
+├── robot_m750.yaml
+├── safety.yaml
+├── logging.yaml
+└── camera/
+    ├── cameras.yaml
+    └── calibration/
+
+ros2/src/myarm_m750_driver/config/            # ROS bridge parameters
+ros2/src/myarm_m750_bringup/config/           # deployment/network composition
+ros2/src/myarm_m750_visualization/config/     # RViz/marker behavior
+ros2/src/myarm_m750_camera/config/            # ROS camera bridge parameters only
+```
+
+Không tạo một global YAML chứa toàn bộ robot, camera, RViz, DDS và simulator.
+Mỗi loader fail-fast và trả immutable config/value object.
+
+# Requirements profiles
+
+```text
+requirements/
+├── base.txt
+├── dev.txt
+├── camera.txt
+├── camera-host.txt
+├── camera-jetson.txt
+├── serial.txt
+├── simulation.txt
+├── ros2.txt
+└── all.txt
+```
+
+Nguyên tắc:
+
+- `base`: nhỏ nhất, không camera/serial/simulation.
+- Host có thể dùng OpenCV wheel; Jetson nên dùng OpenCV từ JetPack/apt và venv `--system-site-packages`.
+- dependency optional không được kéo vào production mặc định.
+- ROS 2 cài bằng apt/rosdep; `requirements/ros2.txt` không cố pip-install `rclpy`.
+- `pyproject.toml` vẫn là package metadata source of truth.
+
+# Camera naming
+
+Hardware name không chứa role:
+
+```text
+logitech_c922_01
+logitech_c922_02
+```
+
+Các field tách riêng:
+
+```yaml
+logitech_c922_01:
+  hardware_model: Logitech C922
+  hardware_serial: SERIAL_CAMERA_01
+  role: wrist
+  device:
+    by_id: /dev/v4l/by-id/...
+    fallback_path: /dev/video0
+```
+
+Lợi ích:
+
+- đổi camera từ wrist sang shoulder không đổi device identity;
+- log/diagnostic truy được đúng phần cứng;
+- calibration file theo hardware name;
+- bật một hoặc hai camera bằng `enabled` độc lập.
+
+# Camera standalone pipeline
+
+```text
+CameraSession
+     ↓
+CameraPipeline
+     ↓
+CameraCapturePort
+     ↓
+MockCameraAdapter / OpenCvCameraAdapter
+```
+
+Pipeline không import ROS 2. ROS package camera về sau chỉ chuyển frame core sang:
+
+- `sensor_msgs/msg/Image`;
+- `sensor_msgs/msg/CameraInfo`;
+- camera TF;
+- diagnostics và reconnect state.
+
+## Fault boundary
+
+- camera timeout/reconnect được ghi tại camera diagnostics;
+- robot driver không fault chỉ vì camera mất;
+- application cấp cao có thể tự quyết định dừng task nếu task bắt buộc vision;
+- không nối camera read vào command callback blocking path.
+
+# Config ví dụ
+
+```yaml
+cameras:
+  logitech_c922_01:
+    enabled: true
+    hardware_model: Logitech C922
+    hardware_serial: SERIAL_CAMERA_01
+    role: wrist
+    device:
+      by_id: /dev/v4l/by-id/usb-...-video-index0
+      fallback_path: /dev/video0
+    stream:
+      width: 640
+      height: 480
+      fps: 30
+      pixel_format: mjpeg
+    frames:
+      camera_frame: logitech_c922_01_link
+      optical_frame: logitech_c922_01_optical_frame
+    calibration_file: calibration/logitech_c922_01.yaml
+```

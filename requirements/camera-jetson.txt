@@ -1,0 +1,3 @@
+-r base.txt
+# Jetson: install OpenCV through JetPack/apt and create the venv with
+# `python3 -m venv --system-site-packages .venv` so `cv2` remains visible.

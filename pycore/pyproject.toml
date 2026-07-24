@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myarm-m750-core"
+version = "0.1.1"
+description = "ROS-optional Python core for MyArm M750 control, kinematics, safety, camera capture, and trajectory execution."
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{name = "Nguyen Hoang Dang Khoa"}]
+dependencies = [
+  "numpy>=1.21",
+  "PyYAML>=5.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+  "pytest-cov>=4",
+  "ruff>=0.4",
+  "mypy>=1.8",
+]
+camera = [
+  "opencv-python>=4.5; platform_machine != 'aarch64'",
+]
+serial = [
+  "pyserial>=3.5",
+  "pymycobot>=3.6",
+]
+simulation = [
+  "mujoco>=2.3",
+]
+
+[tool.setuptools]
+# Physical source folders remain short (src/api, src/domain, ...), while the
+# installed import namespace remains stable as `myarm_m750_core.*`.
+package-dir = {"myarm_m750_core" = "src"}
+packages = [
+  "myarm_m750_core",
+  "myarm_m750_core.api",
+  "myarm_m750_core.application",
+  "myarm_m750_core.domain",
+  "myarm_m750_core.domain.kinematics",
+  "myarm_m750_core.domain.safety",
+  "myarm_m750_core.ports",
+  "myarm_m750_core.adapters",
+  "myarm_m750_core.adapters.camera",
+  "myarm_m750_core.runtime",
+  "myarm_m750_core.runtime.config",
+  "myarm_m750_core.diagnostics",
+]
+
+[tool.setuptools.package-data]
+myarm_m750_core = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 92
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["UP006", "UP007", "UP035"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true

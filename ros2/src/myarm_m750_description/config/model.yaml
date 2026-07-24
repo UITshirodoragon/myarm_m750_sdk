@@ -1,0 +1,6 @@
+model:
+  canonical_urdf: urdf/myarm_m750_poe_v3_2.urdf
+  standalone_rviz_urdf: urdf/myarm_m750_standalone.urdf
+  base_link: base_link
+  flange_link: flange_link
+  end_link: tool0

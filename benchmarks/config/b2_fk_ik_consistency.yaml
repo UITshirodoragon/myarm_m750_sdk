@@ -1,0 +1,5 @@
+benchmark:
+  name: b2_fk_ik_consistency
+  seed_offset_rad: 0.03
+  position_tolerance_m: 0.0005
+  orientation_tolerance_rad: 0.002

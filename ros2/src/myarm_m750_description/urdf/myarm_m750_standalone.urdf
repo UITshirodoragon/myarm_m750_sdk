@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<robot name="myarm_m750_standalone">
+  <!--
+    Lightweight visualization model for v0.1.1.
+    Joint origins, axes, limits, flange, and tool0 are copied from the supplied
+    canonical PoE URDF. Primitive visuals avoid a hard dependency on external
+    mesh packages while validating JointState/TF/RViz integration.
+  -->
+  <material name="body_gray"><color rgba="0.65 0.67 0.70 1"/></material>
+  <material name="joint_dark"><color rgba="0.20 0.22 0.25 1"/></material>
+  <material name="tool_blue"><color rgba="0.10 0.35 0.80 1"/></material>
+
+  <link name="base_link">
+    <visual><origin xyz="0 0 0.035" rpy="0 0 0"/><geometry><cylinder radius="0.075" length="0.07"/></geometry><material name="joint_dark"/></visual>
+    <collision><origin xyz="0 0 0.035" rpy="0 0 0"/><geometry><cylinder radius="0.075" length="0.07"/></geometry></collision>
+  </link>
+  <link name="shoulder_link">
+    <visual><origin xyz="0 0 0.038" rpy="0 0 0"/><geometry><cylinder radius="0.048" length="0.076"/></geometry><material name="body_gray"/></visual>
+  </link>
+  <link name="upper_arm_link">
+    <visual><origin xyz="0.0285 0 0.1515" rpy="0 0.186 0"/><geometry><cylinder radius="0.038" length="0.308"/></geometry><material name="body_gray"/></visual>
+  </link>
+  <link name="lower_arm_link">
+    <visual><origin xyz="0.0394 0 0" rpy="0 1.57079632679 0"/><geometry><cylinder radius="0.035" length="0.0788"/></geometry><material name="joint_dark"/></visual>
+  </link>
+  <link name="forearm_link">
+    <visual><origin xyz="0.124555 0 0" rpy="0 1.57079632679 0"/><geometry><cylinder radius="0.031" length="0.24911"/></geometry><material name="body_gray"/></visual>
+  </link>
+  <link name="wrist_link">
+    <visual><origin xyz="0.0395 0 0" rpy="0 1.57079632679 0"/><geometry><cylinder radius="0.030" length="0.079"/></geometry><material name="joint_dark"/></visual>
+  </link>
+  <link name="flange_link">
+    <visual><origin xyz="0.012 0 0" rpy="0 1.57079632679 0"/><geometry><cylinder radius="0.040" length="0.024"/></geometry><material name="joint_dark"/></visual>
+  </link>
+  <link name="tool0">
+    <visual><origin xyz="-0.059 0 0" rpy="0 1.57079632679 0"/><geometry><cylinder radius="0.010" length="0.118"/></geometry><material name="tool_blue"/></visual>
+  </link>
+
+  <joint name="shoulder_pan_joint" type="revolute">
+    <parent link="base_link"/><child link="shoulder_link"/>
+    <origin xyz="0 0 0.097900" rpy="0 0 0"/><axis xyz="0 0 1"/>
+    <limit lower="-2.879793265790644" upper="2.879793265790644" velocity="1.0" effort="1.0"/>
+  </joint>
+  <joint name="shoulder_lift_joint" type="revolute">
+    <parent link="shoulder_link"/><child link="upper_arm_link"/>
+    <origin xyz="0 0 0.076000" rpy="0 0 0"/><axis xyz="0 1 0"/>
+    <limit lower="-1.570796326794897" upper="1.570796326794897" velocity="1.0" effort="1.0"/>
+  </joint>
+  <joint name="elbow_flex_joint" type="revolute">
+    <parent link="upper_arm_link"/><child link="lower_arm_link"/>
+    <origin xyz="0.057000 0 0.303000" rpy="0 0 0"/><axis xyz="0 1 0"/>
+    <limit lower="-1.570796326794897" upper="1.570796326794897" velocity="1.0" effort="1.0"/>
+  </joint>
+  <joint name="forearm_roll_joint" type="revolute">
+    <parent link="lower_arm_link"/><child link="forearm_link"/>
+    <origin xyz="0.078800 0 0" rpy="0 0 0"/><axis xyz="1 0 0"/>
+    <limit lower="-2.792526803190927" upper="2.792526803190927" velocity="1.0" effort="1.0"/>
+  </joint>
+  <joint name="wrist_flex_joint" type="revolute">
+    <parent link="forearm_link"/><child link="wrist_link"/>
+    <origin xyz="0.249110 0 0" rpy="0 0 0"/><axis xyz="0 1 0"/>
+    <limit lower="-1.570796326794897" upper="2.0943951023931953" velocity="1.0" effort="1.0"/>
+  </joint>
+  <joint name="wrist_roll_joint" type="revolute">
+    <parent link="wrist_link"/><child link="flange_link"/>
+    <origin xyz="0.079000 0 0" rpy="0 0 0"/><axis xyz="1 0 0"/>
+    <limit lower="-3.141592653589793" upper="3.141592653589793" velocity="1.0" effort="1.0"/>
+  </joint>
+  <joint name="flange_to_tool0_joint" type="fixed">
+    <parent link="flange_link"/><child link="tool0"/>
+    <origin xyz="0.118000 0 0" rpy="0 -1.570796326794897 0"/>
+  </joint>
+</robot>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>myarm_m750_bringup</name>
+  <version>0.1.1</version>
+  <description>Jetson-side MyArm M750 bring-up.</description>
+  <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
+  <license>LicenseRef-Proprietary</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>myarm_m750_description</exec_depend>
+  <exec_depend>myarm_m750_driver</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

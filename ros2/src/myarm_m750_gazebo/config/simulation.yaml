@@ -1,0 +1,4 @@
+gazebo:
+  enabled: false
+  use_sim_time: true
+  note: Extension point only in v0.1.1.

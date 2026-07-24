@@ -1,0 +1,11 @@
+sdk:
+  config_files:
+    robot: robot_m750.yaml
+    safety: safety.yaml
+    logging: logging.yaml
+
+  adapter:
+    type: replay
+    options:
+      replay_file: ../../benchmarks/sample_joint_states.jsonl
+      loop: true

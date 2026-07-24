@@ -1,0 +1,6 @@
+network:
+  deployment: wlan_lan
+  jetson_role: execution_and_safety
+  host_role: visualization
+  expected_joint_state_rate_hz: 5.0
+  note: Host loss must not stop local Jetson execution.
