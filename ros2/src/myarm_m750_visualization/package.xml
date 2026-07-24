@@ -5,7 +5,6 @@
   <description>RViz2 Host PC visualization and debug markers.</description>
   <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
   <license>LicenseRef-Proprietary</license>
-  <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
