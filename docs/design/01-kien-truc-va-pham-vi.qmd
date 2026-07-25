@@ -66,7 +66,7 @@ ROS 2 thêm:
 - TF và robot_state_publisher;
 - diagnostics bridge;
 - RViz2 Host PC;
-- MoveIt 2, Gazebo và custom interfaces theo phase.
+- MoveIt 2 planning và standard ROS interfaces.
 
 ROS 2 node phải compose core, không sao chép controller/kinematics/camera logic.
 
@@ -75,19 +75,18 @@ ROS 2 node phải compose core, không sao chép controller/kinematics/camera lo
 Robot:
 
 ```python
-with RobotSession.from_config("pycore/config/default.yaml") as robot:
-    state = robot.get_state()
-    result = robot.move_joints(target=[...], duration_s=4.0)
+with RobotSessionBuilder.from_file("pycore/config/default.yaml").build() as robot:
+    state = robot.read_joint_state()
+    result = robot.move_joints([...], MotionProfile(duration_s=4.0))
 ```
 
 Camera:
 
 ```python
-with CameraSession.from_config(
-    "pycore/config/camera/cameras.yaml",
-    "logitech_c922_01",
-) as camera:
-    frame = camera.read_one(timeout_s=1.0)
+with CameraSessionBuilder.from_file(
+    "pycore/config/camera/cameras_mock.yaml"
+).build() as cameras:
+    frame = cameras.latest_frame("mock_wrist_01", timeout_s=1.0)
 ```
 
 OpenCV là optional adapter. Control-only environment không cần cài camera dependency.
@@ -104,8 +103,8 @@ DISCONNECTED → CONNECTING → IDLE → EXECUTING
 Camera lifecycle độc lập:
 
 ```text
-CLOSED → OPEN → READING → CLOSED
-                 ↘ read timeout/error
+CLOSED → OPENING → STREAMING → STOPPING → CLOSED
+             ↘ BACKOFF/reconnect ↘ FAULT
 ```
 
 Không dùng một state machine chung cho robot và camera vì hai subsystem có
@@ -124,7 +123,7 @@ fault semantics khác nhau.
 
 Tên biến/config phải mang unit khi có nguy cơ nhầm lẫn.
 
-# Phạm vi 0.1.1
+# Phạm vi release
 
 Bắt buộc:
 
@@ -132,16 +131,14 @@ Bắt buộc:
 - pure-Python unit tests;
 - requested physical repository layout;
 - robot mock/replay/vendor boundary;
-- PoE FK/IK/Jacobian và MotionGuard;
+- PoE/Pinocchio FK/IK/Jacobian và complete-trajectory validator;
 - standalone camera contract + mock/OpenCV adapter;
-- ROS 2 package skeleton và RViz2 path từ 0.1.0;
-- requirements profiles, AGENTS và plans;
+- ROS 2 package có executable/consumer và RViz2 Host path;
+- pyproject extras, constraint lock, `AGENTS.md` và `PLANS.md`;
 - version/changelog/docs đồng bộ.
 
-Chưa nằm trong acceptance critical path:
+Hardware gate chưa đóng:
 
-- MoveIt 2 execution hoàn chỉnh;
-- Gazebo control plugin;
-- ROS 2 camera acquisition node hoàn chỉnh;
-- robot thật, camera thật và ROS 2 graph acceptance trong môi trường release;
+- robot thật và camera thật;
+- WLAN hai máy, mesh decimation/license và camera calibration/extrinsics thật;
 - C++/`ros2_control`, torque hoặc dynamics control.

@@ -1,61 +1,106 @@
-"""Public ROS-independent camera API."""
+"""Public multi-camera session backed by independent workers."""
 
 from __future__ import annotations
 
-from typing import Optional
+import threading
+from typing import Mapping, Optional, Tuple
 
-from myarm_m750_core.adapters.camera import OpenCvCameraAdapter
-from myarm_m750_core.domain.camera import CameraFrame
-from myarm_m750_core.application.camera_pipeline import CameraPipeline, FrameHandler
-from myarm_m750_core.ports.camera import CameraCapturePort
-from myarm_m750_core.runtime.config.camera_loader import camera_config_by_name
+from myarm_m750_core.application.camera_pipeline import CameraWorker
+from myarm_m750_core.domain.camera import (
+    CameraConfig,
+    CameraFrame,
+    CameraMetricsSnapshot,
+    CameraState,
+)
+from myarm_m750_core.domain.errors import CameraCaptureError, ConfigurationError
 
 
 class CameraSession:
-    """Create a standalone camera pipeline from YAML configuration."""
+    """Own multiple cameras without coupling failures to robot state."""
 
-    def __init__(self, pipeline: CameraPipeline) -> None:
-        self._pipeline = pipeline
-
-    @classmethod
-    def from_config(
-        cls,
-        config_path: str,
-        hardware_name: str,
-        capture: Optional[CameraCapturePort] = None,
-    ) -> "CameraSession":
-        config = camera_config_by_name(config_path, hardware_name)
-        selected_capture = capture if capture is not None else OpenCvCameraAdapter()
-        return cls(CameraPipeline(config=config, capture=selected_capture))
+    def __init__(
+        self,
+        configs: Mapping[str, CameraConfig],
+        workers: Mapping[str, CameraWorker],
+    ) -> None:
+        self._configs = dict(configs)
+        self._workers = dict(workers)
+        self._started = False
+        self._lock = threading.RLock()
 
     @property
-    def is_open(self) -> bool:
-        return self._pipeline.is_open
+    def camera_names(self) -> Tuple[str, ...]:
+        """Return stable hardware identity topic names."""
+        return tuple(self._workers)
 
-    def open(self) -> None:
-        self._pipeline.open()
+    def config(self, camera_name: str) -> CameraConfig:
+        """Return one immutable camera/calibration/extrinsic contract."""
+        try:
+            return self._configs[camera_name]
+        except KeyError as error:
+            raise ConfigurationError(f"Unknown camera: {camera_name}") from error
 
-    def read_one(self, timeout_s: float = 1.0) -> CameraFrame:
-        return self._pipeline.read_one(timeout_s=timeout_s)
+    def state(self, camera_name: str) -> CameraState:
+        """Return one independent camera worker state."""
+        return self._worker(camera_name).state
 
-    def run(
+    def start(self) -> None:
+        """Start every configured worker; roll back if startup itself fails."""
+        with self._lock:
+            if self._started:
+                return
+            started = []
+            try:
+                for worker in self._workers.values():
+                    worker.start()
+                    started.append(worker)
+            except Exception:
+                for worker in started:
+                    worker.close()
+                raise
+            self._started = True
+
+    def latest_frame(
         self,
-        frame_handler: FrameHandler,
-        max_frames: Optional[int] = None,
+        camera_name: str,
         timeout_s: float = 1.0,
-    ) -> int:
-        return self._pipeline.run(
-            frame_handler=frame_handler,
-            max_frames=max_frames,
+        after_sequence: Optional[int] = None,
+    ) -> CameraFrame:
+        """Read the depth-one latest-frame queue for one hardware identity."""
+        return self._worker(camera_name).latest_frame(
             timeout_s=timeout_s,
+            after_sequence=after_sequence,
         )
 
-    def close(self) -> None:
-        self._pipeline.close()
+    def metrics_snapshot(self, camera_name: str) -> CameraMetricsSnapshot:
+        """Return one camera metrics snapshot."""
+        return self._worker(camera_name).metrics_snapshot()
 
-    def __enter__(self) -> "CameraSession":
-        self.open()
+    def close(self, timeout_s: float = 2.0) -> None:
+        """Bound and join every worker, preserving independent close attempts."""
+        with self._lock:
+            errors = []
+            for camera_name, worker in self._workers.items():
+                try:
+                    worker.close(timeout_s=timeout_s)
+                except Exception as error:
+                    errors.append(f"{camera_name}: {error}")
+            self._started = False
+            if errors:
+                raise CameraCaptureError(f"Camera shutdown failures: {'; '.join(errors)}")
+
+    def __enter__(self) -> CameraSession:
+        self.start()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:  # type: ignore[no-untyped-def]
+    def __exit__(
+        self, exception_type: object, exception: object, traceback: object
+    ) -> None:
+        del exception_type, exception, traceback
         self.close()
+
+    def _worker(self, camera_name: str) -> CameraWorker:
+        try:
+            return self._workers[camera_name]
+        except KeyError as error:
+            raise ConfigurationError(f"Unknown camera: {camera_name}") from error

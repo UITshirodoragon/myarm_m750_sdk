@@ -1,3 +1,5 @@
+config_version: 1
+
 sdk:
   config_files:
     robot: robot_m750.yaml
@@ -6,5 +8,5 @@ sdk:
 
   adapter:
     type: mock
-    options:
+    mock:
       initial_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

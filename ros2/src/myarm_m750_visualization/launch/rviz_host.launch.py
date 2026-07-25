@@ -1,37 +1,74 @@
-"""Host-PC RViz2 and optional marker node."""
+"""Local/headless-safe Host RViz launch using Fast DDS loopback."""
 
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description() -> LaunchDescription:
-    rviz_config = os.path.join(
-        get_package_share_directory("myarm_m750_visualization"),
-        "rviz",
-        "robot_host.rviz",
+    """Include the remote-observe launch with local Fast DDS defaults."""
+    package_share = get_package_share_directory("myarm_m750_visualization")
+    remote_launch = os.path.join(
+        package_share, "launch", "remote_observe.launch.py"
     )
-    enable_markers = LaunchConfiguration("enable_markers")
     return LaunchDescription(
         [
-            DeclareLaunchArgument("enable_markers", default_value="true"),
-            Node(
-                package="myarm_m750_visualization",
-                executable="marker_node",
-                name="myarm_m750_marker_node",
-                output="screen",
-                condition=IfCondition(enable_markers),
+            DeclareLaunchArgument("headless", default_value="false"),
+            DeclareLaunchArgument(
+                "enable_network_probe", default_value="true"
             ),
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="rviz2_myarm_m750_host",
-                output="screen",
-                arguments=["-d", rviz_config],
+            DeclareLaunchArgument("report_json_file", default_value=""),
+            DeclareLaunchArgument("report_csv_file", default_value=""),
+            DeclareLaunchArgument("report_interval_s", default_value="5.0"),
+            DeclareLaunchArgument(
+                "clock_offset_source",
+                default_value="local_loopback_same_clock",
+            ),
+            DeclareLaunchArgument(
+                "measured_clock_offset_ms",
+                default_value="0.0",
+            ),
+            DeclareLaunchArgument(
+                "require_clock_offset_measurement",
+                default_value="true",
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(remote_launch),
+                launch_arguments={
+                    "network_config_file": os.path.join(
+                        package_share, "config", "network_host_local.yaml"
+                    ),
+                    "fastdds_profile_file": os.path.join(
+                        package_share, "config", "fastdds_local.xml"
+                    ),
+                    "headless": LaunchConfiguration("headless"),
+                    "enable_network_probe": LaunchConfiguration(
+                        "enable_network_probe"
+                    ),
+                    "report_json_file": LaunchConfiguration(
+                        "report_json_file"
+                    ),
+                    "report_csv_file": LaunchConfiguration(
+                        "report_csv_file"
+                    ),
+                    "report_interval_s": LaunchConfiguration(
+                        "report_interval_s"
+                    ),
+                    "check_local_interface": "false",
+                    "clock_offset_source": LaunchConfiguration(
+                        "clock_offset_source"
+                    ),
+                    "measured_clock_offset_ms": LaunchConfiguration(
+                        "measured_clock_offset_ms"
+                    ),
+                    "require_clock_offset_measurement": LaunchConfiguration(
+                        "require_clock_offset_measurement"
+                    ),
+                }.items(),
             ),
         ]
     )

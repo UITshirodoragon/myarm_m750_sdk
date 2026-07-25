@@ -1,0 +1,30 @@
+config_version: 1
+
+sdk:
+  config_files:
+    robot: robot_m750.yaml
+    safety: safety.yaml
+    logging: logging.yaml
+
+  adapter:
+    type: vendor_serial
+    hardware:
+      # Intentionally empty: deployment must supply certified identity values.
+      serial_by_id: ""
+      baudrate: 1000000
+      operation_deadline_s: 0.1
+      max_retries: 1
+      retry_delay_s: 0.05
+      expected_model: ""
+      mapping_fingerprint: e7e44be2d78d12485589ab0ac6ae245ffb6465740ae19fed79145fbdb8bc663e
+      firmware:
+        expected_version: ""
+        speed: 30
+      capabilities:
+        # Required when any capability below is marked supported.
+        verification_reference: ""
+        stop: unverified
+        pause: unverified
+        resume: unverified
+        power_control: unsupported
+      debug: false

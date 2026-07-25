@@ -6,13 +6,16 @@ import threading
 import time
 from typing import Sequence
 
-from myarm_m750_core.domain.errors import InvalidDriverStateError
+from myarm_m750_core.domain.errors import HardwareTimeoutError, InvalidDriverStateError
 from myarm_m750_core.domain.models import (
+    AdapterCapabilities,
+    CapabilityState,
+    CommandContext,
     CommandResult,
+    HardwareIdentity,
     HardwareStatus,
     JointState,
     JointTarget,
-    RobotCapabilities,
 )
 from myarm_m750_core.ports.robot_hardware import RobotHardwarePort
 
@@ -25,14 +28,12 @@ class MockRobotAdapter(RobotHardwarePort):
         if len(self._position_rad) != 6:
             raise ValueError("MockRobotAdapter requires six initial joint values.")
         self._connected = False
-        self._paused = False
         self._sequence = 0
         self._lock = threading.RLock()
 
     def connect(self) -> None:
         with self._lock:
             self._connected = True
-            self._paused = False
 
     def disconnect(self) -> None:
         with self._lock:
@@ -42,58 +43,69 @@ class MockRobotAdapter(RobotHardwarePort):
         if not self._connected:
             raise InvalidDriverStateError("Mock adapter is disconnected.")
 
-    def read_state(self) -> JointState:
+    @staticmethod
+    def _check_deadline(context: CommandContext) -> None:
+        if time.monotonic() > context.deadline_monotonic_s:
+            raise HardwareTimeoutError(
+                f"Mock operation exceeded deadline for {context.command_id}."
+            )
+
+    def read_joint_state(self, context: CommandContext) -> JointState:
         with self._lock:
             self._require_connected()
+            self._check_deadline(context)
             return JointState(
                 position_rad=self._position_rad,
-                timestamp_s=time.time(),
+                sample_wall_time_s=time.time(),
+                received_monotonic_s=time.monotonic(),
                 source="mock",
                 sequence=self._sequence,
             )
 
-    def write_joint_target(self, target: JointTarget) -> CommandResult:
+    def write_joint_target(
+        self, target: JointTarget, context: CommandContext
+    ) -> CommandResult:
         with self._lock:
             self._require_connected()
-            if self._paused:
-                return CommandResult.rejected(
-                    "Mock adapter is paused.", "ADAPTER_PAUSED"
-                )
+            self._check_deadline(context)
             self._position_rad = target.position_rad
             self._sequence += 1
-            return CommandResult.success("Mock target applied.")
+            return CommandResult.success(
+                "Mock target applied.", command_id=context.command_id
+            )
 
-    def stop(self) -> CommandResult:
+    def stop(self, context: CommandContext) -> CommandResult:
         with self._lock:
             self._require_connected()
-            return CommandResult.success("Mock motion stopped.")
+            self._check_deadline(context)
+            return CommandResult.success(
+                "Mock motion stopped.", command_id=context.command_id
+            )
 
-    def pause(self) -> CommandResult:
-        with self._lock:
-            self._require_connected()
-            self._paused = True
-            return CommandResult.success("Mock motion paused.")
-
-    def resume(self) -> CommandResult:
-        with self._lock:
-            self._require_connected()
-            self._paused = False
-            return CommandResult.success("Mock motion resumed.")
-
-    def capabilities(self) -> RobotCapabilities:
-        return RobotCapabilities(
-            supports_pause=True,
-            supports_resume=True,
-            supports_stop=True,
-            supports_power_control=False,
+    def capabilities(self) -> AdapterCapabilities:
+        return AdapterCapabilities(
+            stop=CapabilityState.SUPPORTED,
+            pause=CapabilityState.UNSUPPORTED,
+            resume=CapabilityState.UNSUPPORTED,
+            power_control=CapabilityState.UNSUPPORTED,
         )
 
-    def status(self) -> HardwareStatus:
-        state = "paused" if self._paused else "idle"
-        if not self._connected:
-            state = "disconnected"
+    def read_hardware_status(self) -> HardwareStatus:
+        state = "idle" if self._connected else "disconnected"
         return HardwareStatus(
             connected=self._connected,
             state=state,
             message="Deterministic in-memory adapter.",
+        )
+
+    def probe_identity(self, context: CommandContext) -> HardwareIdentity:
+        self._require_connected()
+        self._check_deadline(context)
+        return HardwareIdentity(
+            adapter="mock",
+            model="myarm_m750_mock",
+            firmware_version="mock-1",
+            serial_resource="memory://myarm_m750",
+            mapping_fingerprint="mock-canonical",
+            capability_verification_reference="builtin://mock-adapter",
         )

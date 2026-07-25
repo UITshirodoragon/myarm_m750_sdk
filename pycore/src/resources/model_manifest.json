@@ -1,0 +1,43 @@
+{
+  "core_snapshot": {
+    "artifact_sha256": "0927796df0a9ada2385f5f0916bb7582f1967cf2f1ab047e6a2f2fe96c612d24",
+    "package": "myarm_m750_core.resources",
+    "resource": "myarm_m750_kinematic.urdf"
+  },
+  "kinematic_contract_sha256": "ecc19f88b1f74951cd8f2db427ad41ff3d6c9f7ec1304648d43f85322f4b9c52",
+  "model_name": "myarm_m750",
+  "model_revision": "3.2",
+  "provenance": {
+    "collision": "provisional primitives; physical collision review pending",
+    "inertial": "unavailable; dynamics, gravity, and torque disabled",
+    "visual_meshes": "supplied MyArm M750 v3.2 assets; license review pending"
+  },
+  "schema_version": 1,
+  "source": {
+    "path": "urdf/myarm_m750.urdf.xacro",
+    "sha256": "ffeef950e6222a0a5870eb8ab264ccb47c3e75e5d5d030df5cda76e3c35a4a03"
+  },
+  "variants": {
+    "full": {
+      "artifact_sha256": "9ad2c027afc83082dad3903ea82ba5a1ff5b89deb16f1dee177054f08561c355",
+      "collision_geometry": "primitive",
+      "kinematic_contract_sha256": "ecc19f88b1f74951cd8f2db427ad41ff3d6c9f7ec1304648d43f85322f4b9c52",
+      "path": "urdf/generated/myarm_m750_full.urdf",
+      "visual_geometry": "detailed_mesh"
+    },
+    "kinematic": {
+      "artifact_sha256": "0927796df0a9ada2385f5f0916bb7582f1967cf2f1ab047e6a2f2fe96c612d24",
+      "collision_geometry": "none",
+      "kinematic_contract_sha256": "ecc19f88b1f74951cd8f2db427ad41ff3d6c9f7ec1304648d43f85322f4b9c52",
+      "path": "urdf/generated/myarm_m750_kinematic.urdf",
+      "visual_geometry": "none"
+    },
+    "lightweight": {
+      "artifact_sha256": "a4c8177262576384390bf25203aedf5fc8d389505c4016b51c89730b2e139e83",
+      "collision_geometry": "primitive",
+      "kinematic_contract_sha256": "ecc19f88b1f74951cd8f2db427ad41ff3d6c9f7ec1304648d43f85322f4b9c52",
+      "path": "urdf/generated/myarm_m750_lightweight.urdf",
+      "visual_geometry": "primitive"
+    }
+  }
+}

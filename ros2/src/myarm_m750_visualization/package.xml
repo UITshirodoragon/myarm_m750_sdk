@@ -1,18 +1,20 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>myarm_m750_visualization</name>
-  <version>0.1.1</version>
-  <description>RViz2 Host PC visualization and debug markers.</description>
+  <version>0.2.0</version>
+  <description>Read-only RViz2 Host and WLAN observation tooling.</description>
   <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
   <license>LicenseRef-Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rviz2</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>trajectory_msgs</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rmw_fastrtps_cpp</exec_depend>
   <exec_depend>myarm_m750_description</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>

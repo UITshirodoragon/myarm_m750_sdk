@@ -1,4 +1,0 @@
--r base.txt
-# Generic host profile. On aarch64/Jetson, rely on the JetPack/system OpenCV
-# build instead of replacing it with a PyPI wheel.
-opencv-python>=4.5; platform_machine != "aarch64"

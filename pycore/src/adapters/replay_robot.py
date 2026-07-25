@@ -8,13 +8,20 @@ import time
 from pathlib import Path
 from typing import List
 
-from myarm_m750_core.domain.errors import ConfigurationError, InvalidDriverStateError
+from myarm_m750_core.domain.errors import (
+    ConfigurationError,
+    HardwareTimeoutError,
+    InvalidDriverStateError,
+)
 from myarm_m750_core.domain.models import (
+    AdapterCapabilities,
+    CapabilityState,
+    CommandContext,
     CommandResult,
+    HardwareIdentity,
     HardwareStatus,
     JointState,
     JointTarget,
-    RobotCapabilities,
 )
 from myarm_m750_core.ports.robot_hardware import RobotHardwarePort
 
@@ -33,9 +40,7 @@ class ReplayRobotAdapter(RobotHardwarePort):
     def connect(self) -> None:
         with self._lock:
             if not self._replay_path.is_file():
-                raise ConfigurationError(
-                    "Replay file does not exist: {0}".format(self._replay_path)
-                )
+                raise ConfigurationError(f"Replay file does not exist: {self._replay_path}")
             samples: List[JointState] = []
             with self._replay_path.open("r", encoding="utf-8") as stream:
                 for line_number, line in enumerate(stream, start=1):
@@ -47,14 +52,15 @@ class ReplayRobotAdapter(RobotHardwarePort):
                         positions = payload["position_rad"]
                     except (json.JSONDecodeError, KeyError, TypeError) as error:
                         raise ConfigurationError(
-                            "Invalid replay sample at line {0}: {1}".format(
-                                line_number, error
-                            )
+                            f"Invalid replay sample at line {line_number}: {error}"
                         ) from error
                     samples.append(
                         JointState(
                             position_rad=tuple(positions),
-                            timestamp_s=float(payload.get("timestamp_s", time.time())),
+                            sample_wall_time_s=float(
+                                payload.get("timestamp_s", time.time())
+                            ),
+                            received_monotonic_s=time.monotonic(),
                             source="replay",
                             sequence=int(payload.get("sequence", line_number - 1)),
                         )
@@ -73,9 +79,17 @@ class ReplayRobotAdapter(RobotHardwarePort):
         if not self._connected:
             raise InvalidDriverStateError("Replay adapter is disconnected.")
 
-    def read_state(self) -> JointState:
+    @staticmethod
+    def _check_deadline(context: CommandContext) -> None:
+        if time.monotonic() > context.deadline_monotonic_s:
+            raise HardwareTimeoutError(
+                f"Replay operation exceeded deadline for {context.command_id}."
+            )
+
+    def read_joint_state(self, context: CommandContext) -> JointState:
         with self._lock:
             self._require_connected()
+            self._check_deadline(context)
             sample = self._samples[self._index]
             if self._index < len(self._samples) - 1:
                 self._index += 1
@@ -83,45 +97,54 @@ class ReplayRobotAdapter(RobotHardwarePort):
                 self._index = 0
             return JointState(
                 position_rad=sample.position_rad,
-                timestamp_s=time.time(),
+                sample_wall_time_s=time.time(),
+                received_monotonic_s=time.monotonic(),
                 source="replay",
                 sequence=sample.sequence,
             )
 
-    def write_joint_target(self, target: JointTarget) -> CommandResult:
+    def write_joint_target(
+        self, target: JointTarget, context: CommandContext
+    ) -> CommandResult:
         del target
         self._require_connected()
+        self._check_deadline(context)
         return CommandResult.rejected(
-            "Replay adapter is read-only.", "REPLAY_READ_ONLY"
+            "Replay adapter is read-only.",
+            "REPLAY_READ_ONLY",
+            command_id=context.command_id,
         )
 
-    def stop(self) -> CommandResult:
+    def stop(self, context: CommandContext) -> CommandResult:
         self._require_connected()
-        return CommandResult.success("Replay cursor stopped at current sample.")
-
-    def pause(self) -> CommandResult:
-        self._require_connected()
-        return CommandResult.rejected(
-            "Replay pause is not implemented.", "CAPABILITY_NOT_SUPPORTED"
+        self._check_deadline(context)
+        return CommandResult.success(
+            "Replay cursor stopped at current sample.", command_id=context.command_id
         )
 
-    def resume(self) -> CommandResult:
-        self._require_connected()
-        return CommandResult.rejected(
-            "Replay resume is not implemented.", "CAPABILITY_NOT_SUPPORTED"
+    def capabilities(self) -> AdapterCapabilities:
+        return AdapterCapabilities(
+            stop=CapabilityState.SUPPORTED,
+            pause=CapabilityState.UNSUPPORTED,
+            resume=CapabilityState.UNSUPPORTED,
+            power_control=CapabilityState.UNSUPPORTED,
         )
 
-    def capabilities(self) -> RobotCapabilities:
-        return RobotCapabilities(
-            supports_pause=False,
-            supports_resume=False,
-            supports_stop=True,
-            supports_power_control=False,
-        )
-
-    def status(self) -> HardwareStatus:
+    def read_hardware_status(self) -> HardwareStatus:
         return HardwareStatus(
             connected=self._connected,
             state="replay" if self._connected else "disconnected",
             message="Read-only JSONL replay adapter.",
+        )
+
+    def probe_identity(self, context: CommandContext) -> HardwareIdentity:
+        self._require_connected()
+        self._check_deadline(context)
+        return HardwareIdentity(
+            adapter="replay",
+            model="myarm_m750_replay",
+            firmware_version="replay-1",
+            serial_resource=str(self._replay_path),
+            mapping_fingerprint="replay-canonical",
+            capability_verification_reference="builtin://replay-adapter",
         )

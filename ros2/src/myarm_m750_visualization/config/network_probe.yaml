@@ -1,0 +1,5 @@
+myarm_m750_network_probe:
+  ros__parameters:
+    joint_state_topic: /joint_states
+    diagnostic_topic: /diagnostics
+    reconnect_gap_s: 1.0

@@ -1,11 +1,12 @@
 from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = "myarm_m750_driver"
 
 setup(
     name=package_name,
-    version="0.1.1",
+    version="0.2.0",
     packages=find_packages(exclude=("test",)),
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
@@ -17,7 +18,7 @@ setup(
     zip_safe=True,
     maintainer="Nguyen Hoang Dang Khoa",
     maintainer_email="khoa@example.invalid",
-    description="ROS 2 bridge for the MyArm M750 Python Core SDK.",
+    description="Lifecycle and FollowJointTrajectory bridge for MyArm M750.",
     license="LicenseRef-Proprietary",
     entry_points={
         "console_scripts": [

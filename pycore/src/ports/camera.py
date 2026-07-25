@@ -1,29 +1,28 @@
-"""Camera capture port used by standalone and ROS 2 deployments."""
+"""Camera capture boundary implemented by mock and OpenCV adapters."""
 
 from __future__ import annotations
 
-from typing import Protocol
+from abc import ABC, abstractmethod
 
-from myarm_m750_core.domain.camera import CameraConfig, CameraReadResult
+from myarm_m750_core.domain.camera import CameraConfig, CameraFrame
 
 
-class CameraCapturePort(Protocol):
-    """Minimal capture boundary implemented by OpenCV, mock, or future drivers."""
+class CameraCapturePort(ABC):
+    """One blocking camera device; workers keep it off robot callbacks."""
 
     @property
+    @abstractmethod
     def is_open(self) -> bool:
-        """Return whether the capture device is currently open."""
+        """Return whether the capture device is open."""
 
+    @abstractmethod
     def open(self, config: CameraConfig) -> None:
-        """Open one physical camera using validated configuration."""
+        """Open the configured physical/synthetic camera idempotently."""
 
-    def read(self, timeout_s: float) -> CameraReadResult:
-        """Read at most one frame using ``timeout_s`` as a best-effort budget.
+    @abstractmethod
+    def read_frame(self, timeout_s: float) -> CameraFrame:
+        """Return one frame or raise a typed timeout/capture error."""
 
-        Backends must report timeout explicitly. A blocking native driver may not
-        provide a hard realtime deadline, so camera reads must stay off the robot
-        command callback path.
-        """
-
+    @abstractmethod
     def close(self) -> None:
-        """Release the camera resource. Repeated calls must be safe."""
+        """Release resources idempotently."""

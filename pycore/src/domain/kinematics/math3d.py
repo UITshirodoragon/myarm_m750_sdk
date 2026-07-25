@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from typing import Iterable
 
 import numpy as np
 
 
-def skew(vector: Sequence[float]) -> np.ndarray:
+def skew(vector: Iterable[float]) -> np.ndarray:
     """Return the 3x3 cross-product matrix of a 3-vector."""
     x_value, y_value, z_value = (float(value) for value in vector)
     return np.array(
@@ -48,15 +48,13 @@ def rotation_z(angle_rad: float) -> np.ndarray:
     )
 
 
-def rpy_to_matrix(rpy_rad: Sequence[float]) -> np.ndarray:
+def rpy_to_matrix(rpy_rad: Iterable[float]) -> np.ndarray:
     """Return URDF fixed-axis RPY rotation ``Rz(yaw) Ry(pitch) Rx(roll)``."""
     roll_rad, pitch_rad, yaw_rad = (float(value) for value in rpy_rad)
     return rotation_z(yaw_rad).dot(rotation_y(pitch_rad)).dot(rotation_x(roll_rad))
 
 
-def transform_from_xyz_rpy(
-    xyz_m: Sequence[float], rpy_rad: Sequence[float]
-) -> np.ndarray:
+def transform_from_xyz_rpy(xyz_m: Iterable[float], rpy_rad: Iterable[float]) -> np.ndarray:
     """Build a homogeneous transform from URDF origin values."""
     transform_matrix = np.eye(4, dtype=float)
     transform_matrix[:3, :3] = rpy_to_matrix(rpy_rad)
@@ -64,7 +62,7 @@ def transform_from_xyz_rpy(
     return transform_matrix
 
 
-def rotation_exp(axis: Sequence[float], angle_rad: float) -> np.ndarray:
+def rotation_exp(axis: Iterable[float], angle_rad: float) -> np.ndarray:
     """Rodrigues exponential for a unit rotation axis."""
     axis_vector = np.asarray(tuple(axis), dtype=float)
     axis_norm = float(np.linalg.norm(axis_vector))
@@ -79,7 +77,7 @@ def rotation_exp(axis: Sequence[float], angle_rad: float) -> np.ndarray:
     )
 
 
-def twist_exp(screw_axis: Sequence[float], joint_position: float) -> np.ndarray:
+def twist_exp(screw_axis: Iterable[float], joint_position: float) -> np.ndarray:
     """Return ``exp([S] theta)`` for revolute or prismatic screw axes."""
     screw = np.asarray(tuple(screw_axis), dtype=float)
     if screw.shape != (6,):
@@ -118,16 +116,11 @@ def adjoint(transform_matrix: np.ndarray) -> np.ndarray:
     return result
 
 
-def quaternion_xyzw_to_matrix(quaternion_xyzw: Sequence[float]) -> np.ndarray:
+def quaternion_xyzw_to_matrix(quaternion_xyzw: Iterable[float]) -> np.ndarray:
     """Convert a normalized or non-normalized XYZW quaternion to a matrix."""
-    x_value, y_value, z_value, w_value = (
-        float(value) for value in quaternion_xyzw
-    )
+    x_value, y_value, z_value, w_value = (float(value) for value in quaternion_xyzw)
     quaternion_norm = math.sqrt(
-        x_value * x_value
-        + y_value * y_value
-        + z_value * z_value
-        + w_value * w_value
+        x_value * x_value + y_value * y_value + z_value * z_value + w_value * w_value
     )
     if quaternion_norm < 1.0e-12:
         raise ValueError("Quaternion norm must be non-zero.")
@@ -155,6 +148,26 @@ def quaternion_xyzw_to_matrix(quaternion_xyzw: Sequence[float]) -> np.ndarray:
         ],
         dtype=float,
     )
+
+
+def quaternion_xyzw_to_wxyz(quaternion_xyzw: Iterable[float]) -> np.ndarray:
+    """Convert an XYZW quaternion DTO to the WXYZ convention used by Pinocchio."""
+    quaternion = np.asarray(tuple(quaternion_xyzw), dtype=float)
+    if quaternion.shape != (4,):
+        raise ValueError("quaternion_xyzw must contain four values.")
+    if not np.all(np.isfinite(quaternion)):
+        raise ValueError("quaternion_xyzw must contain finite values.")
+    return quaternion[[3, 0, 1, 2]]
+
+
+def quaternion_wxyz_to_xyzw(quaternion_wxyz: Iterable[float]) -> np.ndarray:
+    """Convert a Pinocchio-style WXYZ quaternion to the core XYZW convention."""
+    quaternion = np.asarray(tuple(quaternion_wxyz), dtype=float)
+    if quaternion.shape != (4,):
+        raise ValueError("quaternion_wxyz must contain four values.")
+    if not np.all(np.isfinite(quaternion)):
+        raise ValueError("quaternion_wxyz must contain finite values.")
+    return quaternion[[1, 2, 3, 0]]
 
 
 def matrix_to_quaternion_xyzw(rotation_matrix: np.ndarray) -> np.ndarray:

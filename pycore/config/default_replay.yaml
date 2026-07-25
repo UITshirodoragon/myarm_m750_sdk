@@ -1,3 +1,5 @@
+config_version: 1
+
 sdk:
   config_files:
     robot: robot_m750.yaml
@@ -6,6 +8,6 @@ sdk:
 
   adapter:
     type: replay
-    options:
+    replay:
       replay_file: ../../benchmarks/sample_joint_states.jsonl
       loop: true

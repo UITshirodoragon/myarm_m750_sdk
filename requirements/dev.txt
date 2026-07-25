@@ -1,5 +1,0 @@
--r base.txt
-pytest>=7
-pytest-cov>=4
-ruff>=0.4
-mypy>=1.8

@@ -1,4 +1,0 @@
--r base.txt
-# Optional real-hardware serial/vendor adapter dependencies.
-pyserial>=3.5
-pymycobot>=3.6

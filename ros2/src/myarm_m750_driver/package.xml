@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>myarm_m750_driver</name>
-  <version>0.1.1</version>
-  <description>JointState, diagnostics, and FollowJointTrajectory bridge.</description>
+  <version>0.2.0</version>
+  <description>Lifecycle, diagnostics, and FollowJointTrajectory bridge.</description>
   <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
   <license>LicenseRef-Proprietary</license>
   <exec_depend>rclpy</exec_depend>
@@ -10,8 +10,10 @@
   <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>control_msgs</exec_depend>
   <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
   <test_depend>ament_flake8</test_depend>

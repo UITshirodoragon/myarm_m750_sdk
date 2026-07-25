@@ -1,0 +1,5 @@
+# Intentionally empty and non-runnable. Add only certified hardware identities,
+# calibration files, and measured extrinsics in a deployment-owned copy.
+config_version: 1
+profile: real
+cameras: {}

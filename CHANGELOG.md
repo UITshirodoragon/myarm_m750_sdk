@@ -3,6 +3,50 @@
 Tất cả thay đổi đáng chú ý của SDK được ghi tại đây. Repository dùng Semantic
 Versioning.
 
+## 0.2.0 — Unreleased
+
+### Breaking
+
+- Thay composition API bằng `RobotSessionBuilder`/`CameraSessionBuilder`; xóa
+  `from_config()`, `get_state()`, `pause()` và `resume()`.
+- Cấu hình chuyển sang strict `config_version: 1`; legacy/unknown/missing field
+  bị từ chối trước khi mở hardware.
+- Hardware boundary dùng value object và absolute monotonic deadline; capability
+  có `SUPPORTED`, `UNSUPPORTED`, `UNVERIFIED`; capability thật được quảng cáo
+  phải có probe và evidence reference truy vết được.
+- Xóa custom message, Gazebo, MuJoCo và Docker scaffold không có consumer.
+
+### Added
+
+- Tách command admission, pure complete-trajectory validator, absolute-deadline
+  executor, cancellation generation, watchdog, workload budget và metrics.
+- ROS 2 Foxy driver có lifecycle-equivalent Trigger services, standard
+  `FollowJointTrajectory`, explicit QoS và diagnostics ngay khi inactive.
+- Fast DDS WLAN profiles, Jetson/Host launch tách biệt và network probe
+  JSON/CSV; local gate lấy tối thiểu 100 state sample, remote command mặc định
+  tắt.
+- PoE reference, Pinocchio 2.6.17 provider, optional pytransform3d 3.16.0,
+  shared DLS IK và golden 128-configuration comparison.
+- Canonical Xacro sinh full/lightweight/kinematic variants, model manifest,
+  packaged core resource và MoveIt Foxy plan/mock-execution package.
+- Independent camera workers, depth-one latest queues, reconnect/metrics,
+  calibration/extrinsic validation và ROS Image/CameraInfo/static-TF bridge.
+
+### Verification scope
+
+- Source, mock, vendor-fake và ROS local/headless gates thuộc release gate.
+- Gate hiện tại: minimal core 245 pass/2 Pinocchio-system skip, coverage
+  93.02%, Ruff/mypy
+  zero; ROS Foxy build 6/6 package, 11 test-result records không lỗi và live
+  mock driver/P4a/two-camera graph đạt.
+- MoveIt plan-only, collision rejection và mock execution đạt qua automated
+  live gate có driver-readiness, conservative time-scaling và clean shutdown;
+  MoveIt-level cancel trên Foxy vẫn mở vì cancel chỉ được xử lý sau terminal.
+- Robot/camera thật và WLAN hai máy vẫn cần bằng chứng `[!]`; dynamics/torque
+  bị vô hiệu vì inertial/payload chưa có provenance.
+- Detailed visual meshes vượt release performance budget; lightweight variant
+  dùng primitive, còn decimation/license/visual QA giữ `[!]`.
+
 ## 0.1.1 — 2026-07-24
 
 ### Changed
@@ -21,7 +65,8 @@ Versioning.
 
 - `AGENTS.md` làm coding-agent/contributor contract dựa trên clean-code,
   clean-comment, safety và ROS 2 boundary rules.
-- `agent.md` compatibility entry point và `plans.md` cho versioned task/gate planning.
+- Canonical contributor/planning documents được thêm; compatibility aliases của
+  release đó đã bị xóa trong breaking release 0.2.0.
 - `requirements/` profiles: base, dev, camera, serial, simulation, ROS 2 và all.
 - ROS-independent camera domain models, capture port, mock adapter, optional OpenCV
   adapter, `CameraPipeline` và public `CameraSession`.

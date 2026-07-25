@@ -23,11 +23,6 @@ Visualization Manager:
       Show Arrows: true
       Show Axes: true
       Show Names: true
-    - Class: rviz_default_plugins/Marker
-      Enabled: true
-      Marker Topic:
-        Value: /myarm_m750/debug_markers
-      Name: Target and Trajectory
   Enabled: true
   Global Options:
     Background Color: 35; 35; 35

@@ -1,7 +1,11 @@
 myarm_m750_driver:
   ros__parameters:
-    # Override from launch. Keep absolute to avoid ambiguity across Jetson/Host.
-    core_config_file: ""
     state_rate_hz: 5.0
-    publish_diagnostics: true
+    diagnostic_rate_hz: 1.0
     joint_state_topic: /joint_states
+    follow_joint_trajectory_action: /myarm_m750/follow_joint_trajectory
+    maximum_trajectory_points: 1000
+    default_path_tolerance_rad: 0.2
+    default_goal_tolerance_rad: 0.05
+    default_goal_time_tolerance_s: 0.5
+    old_header_tolerance_s: 0.5

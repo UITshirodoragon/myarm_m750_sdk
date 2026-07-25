@@ -1,33 +1,36 @@
 """MyArm M750 ROS-independent Python Core SDK."""
 
-from myarm_m750_core.api import CameraSession, RobotSession
-from myarm_m750_core.domain import (
+from myarm_m750_core.api import (
+    CameraSession,
+    CameraSessionBuilder,
+    RobotSession,
+    RobotSessionBuilder,
+)
+from myarm_m750_core.domain.models import (
+    AdapterCapabilities,
     CommandResult,
     CommandStatus,
-    HardwareStatus,
-    IkResult,
     JointState,
-    JointTarget,
     JointTrajectory,
     JointTrajectoryPoint,
+    MotionProfile,
     RigidTransform,
-    RobotCapabilities,
 )
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 __all__ = [
+    "AdapterCapabilities",
     "CameraSession",
+    "CameraSessionBuilder",
     "CommandResult",
     "CommandStatus",
-    "HardwareStatus",
-    "IkResult",
     "JointState",
-    "JointTarget",
     "JointTrajectory",
     "JointTrajectoryPoint",
+    "MotionProfile",
     "RigidTransform",
-    "RobotCapabilities",
     "RobotSession",
+    "RobotSessionBuilder",
     "__version__",
 ]

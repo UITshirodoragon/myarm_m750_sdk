@@ -45,7 +45,8 @@ interface tồn tại không đồng nghĩa tính năng đã nghiệm thu.
 
 - Driver, JointState, diagnostics và FollowJointTrajectory.
 - robot_state_publisher, TF/TF static.
-- Host RViz2 target/trajectory markers.
+- Host RViz2 RobotModel/TF và diagnostics/network probe; planning trajectory
+  dùng standard MoveIt display, không có FK marker node phụ thuộc core.
 - Camera ROS bridge và Host image view.
 - WLAN/DDS measurement.
 
@@ -58,9 +59,9 @@ interface tồn tại không đồng nghĩa tính năng đã nghiệm thu.
 - Visualize trên Host.
 - Execute mock trước robot thật.
 
-# Phase F — Simulation và C++
+# Phase F — Tối ưu có bằng chứng
 
-- Gazebo Classic/MuJoCo adapters theo port contract.
+- Simulator chỉ được thêm lại qua port contract và acceptance test, không giữ scaffold.
 - C++/`ros2_control` chỉ khi benchmark cho thấy Python bottleneck.
 
 # Benchmark
@@ -75,7 +76,7 @@ interface tồn tại không đồng nghĩa tính năng đã nghiệm thu.
 | B5 | ROS 2/WLAN: rate, jitter, TF delay, action latency, packet loss |
 | B6 | camera: FPS, drops, timeout, reconnect, one/two-camera operation |
 
-# Acceptance 0.1.1
+# Acceptance release
 
 | Nhóm | Tiêu chí |
 |---|---|
@@ -83,18 +84,17 @@ interface tồn tại không đồng nghĩa tính năng đã nghiệm thu.
 | Packaging | `pip install -e pycore` cung cấp `myarm_m750_core` namespace |
 | Standalone | Robot mock/FK/IK/camera mock không cần ROS 2 |
 | Hybrid | ROS 2 chỉ phụ thuộc core theo một chiều |
-| Requirements | Có profile base/dev/camera/serial/simulation/ROS 2 |
+| Dependencies | `pyproject.toml` + một constraints lock Python 3.8 |
 | Camera | Hardware name, role, serial và device path tách riêng |
 | Testing | Unit tests + release verification đạt |
-| Agent support | `AGENTS.md`, `agent.md`, `plans.md` tồn tại và cùng kiến trúc |
+| Agent support | `AGENTS.md` và `PLANS.md` tồn tại và cùng kiến trúc |
 | Documentation | README, design docs, changelog và version đồng bộ |
 
-Các mục cần chạy ngoài môi trường release:
+Các mục vẫn cần chạy ngoài source/mock/local gate:
 
-- ROS 2 Foxy graph/build trên Jetson/Host;
 - webcam Logitech thật;
 - robot thật low-amplitude smoke test;
-- WLAN/DDS benchmark.
+- WLAN/DDS benchmark hai máy.
 
 # ADR khóa
 
@@ -106,7 +106,7 @@ ADR-004: Firmware mapping belongs only to hardware adapter.
 ADR-005: Physical source layout is short; installed namespaces remain explicit.
 ADR-006: Camera capture is core capability; ROS camera is a bridge.
 ADR-007: Robot and camera faults remain separate unless application policy joins them.
-ADR-008: Optional dependencies are installed by use-case profiles.
+ADR-008: Optional dependencies are pyproject extras with a Python 3.8 constraint lock.
 ADR-009: RViz2 Host visualization is prioritized before full simulation.
 ADR-010: C++ migration requires benchmark evidence.
 ```

@@ -1,4 +1,4 @@
-# myarm-m750-core 0.1.1
+# myarm-m750-core
 
 ROS-optional Python package for MyArm M750 control, PoE FK/IK/Jacobian, safety,
 trajectory execution, diagnostics, hardware adapters, and standalone camera
@@ -14,22 +14,22 @@ src/ports
 src/adapters
 src/runtime
 src/diagnostics
+src/resources
 ```
 
 Setuptools installs these as the stable namespace `myarm_m750_core.*`.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r ../requirements/dev.txt
-python3 -m pip install -e .
-pytest
+../tools/bootstrap_core.sh
+../tools/test_core.sh
 ```
 
 Camera support is optional:
 
 ```bash
-python3 -m pip install -r ../requirements/camera.txt
+../.venv-core/bin/python -m pip install \
+  --constraint ../requirements/constraints-py38.txt \
+  --editable '.[camera-host]'
 ```
 
 The default robot YAML uses `MockRobotAdapter`; the standalone camera test uses

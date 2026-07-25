@@ -1,0 +1,19 @@
+schema_version: 1
+network:
+  role: host
+  rmw_implementation: rmw_fastrtps_cpp
+  ros_domain_id: 10
+  wlan_interface: lo
+  interface_address: 127.0.0.1
+  discovery:
+    mode: multicast
+    peer_addresses: []
+    server:
+budget:
+  minimum_joint_state_rate_hz: 4.5
+  maximum_p95_age_ms: 250.0
+  maximum_p99_age_ms: 500.0
+  maximum_gap_s: 1.0
+  maximum_reconnect_s: 15.0
+  maximum_clock_offset_ms: 20.0
+  maximum_control_bandwidth_mbit_s: 1.0

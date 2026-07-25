@@ -4,17 +4,22 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  python38:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.10"]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e "./pycore[dev]"
+          python-version: "3.8"
+          cache: pip
+          cache-dependency-path: |
+            pycore/pyproject.toml
+            requirements/constraints-py38.txt
+      - run: bash -n tools/*.sh
+      - run: ./tools/bootstrap_core.sh
       - run: ./tools/test_all.sh

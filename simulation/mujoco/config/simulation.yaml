@@ -1,4 +1,0 @@
-simulation:
-  enabled: false
-  status: extension_point
-  note: MuJoCo adapter is intentionally deferred after the 0.1.1 core and RViz2 gate.

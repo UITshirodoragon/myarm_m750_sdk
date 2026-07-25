@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>myarm_m750_description</name>
-  <version>0.1.1</version>
-  <description>Canonical MyArm M750 PoE URDF and standalone RViz model.</description>
+  <version>0.2.0</version>
+  <description>Canonical generated MyArm M750 model variants and visual assets.</description>
   <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
   <license>LicenseRef-Proprietary</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
   <export><build_type>ament_cmake</build_type></export>

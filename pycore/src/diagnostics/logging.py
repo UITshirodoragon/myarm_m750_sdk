@@ -51,9 +51,7 @@ def configure_logging(config: Any) -> None:
     if config.console:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-            )
+            logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
         )
         root_logger.addHandler(console_handler)
 
@@ -70,8 +68,6 @@ def configure_logging(config: Any) -> None:
             file_handler.setFormatter(JsonLineFormatter())
         else:
             file_handler.setFormatter(
-                logging.Formatter(
-                    "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-                )
+                logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
             )
         root_logger.addHandler(file_handler)

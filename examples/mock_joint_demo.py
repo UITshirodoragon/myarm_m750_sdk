@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from myarm_m750_core import RobotSession
+from myarm_m750_core import MotionProfile, RobotSessionBuilder
 
 
 def main() -> None:
@@ -12,15 +12,15 @@ def main() -> None:
     parser.add_argument("--config", required=True)
     arguments = parser.parse_args()
 
-    with RobotSession.from_config(arguments.config) as robot:
-        initial = robot.get_state()
+    with RobotSessionBuilder.from_file(arguments.config).build() as robot:
+        initial = robot.read_joint_state()
         print("initial_joint_rad:", initial.position_rad)
         result = robot.move_joints(
-            target=[0.20, -0.20, 0.15, 0.10, -0.10, 0.15],
-            duration_s=3.0,
+            [0.20, -0.20, 0.15, 0.10, -0.10, 0.15],
+            MotionProfile(duration_s=3.0),
         )
         print("command:", result.status.value, result.message, result.command_id)
-        final = robot.get_state()
+        final = robot.read_joint_state()
         print("final_joint_rad:", final.position_rad)
         print("tool0_pose:", robot.compute_fk(final.position_rad))
 

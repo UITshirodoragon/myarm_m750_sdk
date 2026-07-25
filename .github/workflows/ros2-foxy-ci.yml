@@ -1,0 +1,40 @@
+name: ros2-foxy-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  local-headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ros:foxy-ros-base-focal
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ROS build tools
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends \
+            python3-colcon-common-extensions \
+            python3-pip \
+            python3-rosdep \
+            python3-venv \
+            ros-foxy-pinocchio
+      - name: Resolve ROS dependencies
+        shell: bash
+        run: |
+          source /opt/ros/foxy/setup.bash
+          rosdep update --rosdistro foxy --include-eol-distros
+          rosdep install \
+            --from-paths ros2/src \
+            --ignore-src \
+            --rosdistro foxy \
+            --as-root pip:false \
+            --yes
+      - run: bash -n tools/*.sh
+      - run: ./tools/bootstrap_ros.sh
+      - run: ./tools/test_ros.sh

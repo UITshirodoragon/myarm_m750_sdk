@@ -1,58 +1,85 @@
-# Verification report — MyArm M750 SDK v0.1.1
+# Verification playbook — MyArm M750 SDK v0.2.0
 
-Ngày kiểm tra: 24/07/2026.
+Không dùng tài liệu này để tuyên bố gate hardware đã đạt. Kết quả chính thức và
+trạng thái `[x]`/`[!]` được ghi trong `PLANS.md` cùng command, môi trường và
+artifact tương ứng.
 
-## Đã chạy trong môi trường đóng gói
+## Core source/mock gate
 
-- 30 pure-Python unit tests: **PASS**.
-- Requested `pycore/src` và `ros2/src` physical layout regression tests: **PASS**.
-- Parse toàn bộ YAML, XML và URDF: **PASS**.
-- Đồng bộ version `0.1.1` giữa `VERSION`, `pyproject.toml`, ROS `package.xml`,
-  ROS `setup.py` và Python `__version__`: **PASS**.
-- Build wheel `myarm_m750_core-0.1.1-py3-none-any.whl`: **PASS**.
-- Wheel chứa namespace `myarm_m750_core.*` dù physical source nằm trực tiếp dưới
-  `pycore/src/api`, `domain`, `runtime`, ...: **PASS**.
-- Contract URDF PoE v3.2: joint order, origin RPY, axis, limits và standalone
-  RViz2 URDF: **PASS**.
-- Contract mapping `[0, +10, -10, 0, 0, 0] degree` tại hardware boundary: **PASS**.
-- Dependency boundary: domain/runtime/application/ports không import `rclpy`,
-  `pymycobot` hoặc `cv2`: **PASS**.
-- Safe startup: default robot adapter là `mock`: **PASS**.
-- Camera config contract: hardware name, role, serial và stable by-id path tách
-  riêng: **PASS**.
-- Robot public API mock demo: **PASS**.
-- Standalone `CameraSession` mock demo, không ROS 2: **PASS**.
-- FK → numerical IK → mock execution smoke test: **PASS**.
-- T1 mock waypoint: 20 repetitions × 2 waypoints = 40 successful commands.
-- Byte-code compilation cho Core, examples và benchmarks: **PASS**.
-
-Lệnh tái lập:
+Target: ARM64, Ubuntu 20.04, Python 3.8.
 
 ```bash
-python3 -m pip install -r requirements/dev.txt
-python3 -m pip install -e pycore
-./tools/test_all.sh
-./tools/run_mock_demo.sh
-./tools/run_camera_mock_demo.sh
-python3 examples/fk_ik_demo.py --config pycore/config/default.yaml
-python3 benchmarks/mock_joint_waypoint.py \
-  --sdk-config pycore/config/default.yaml \
-  --benchmark-config benchmarks/config/t1_joint_waypoint.yaml
+./tools/bootstrap_core.sh
+./tools/test_core.sh
 ```
 
-## Chưa được xác nhận trong môi trường đóng gói
+Gate chạy trong `.venv-core`, tắt pytest plugin autoload và không ghi user site:
 
-- Chưa build/runtime test bằng ROS 2 Foxy thật vì môi trường tạo artifact không
-  có ROS 2.
-- Chưa kết nối MyArm M750 thật; không tuyên bố đã xác nhận protocol timing,
-  cơ khí, vùng làm việc hoặc firmware limits thực.
-- Chưa mở webcam Logitech thật bằng OpenCV; camera verification hiện dùng mock.
-- Chưa nghiệm thu DDS/WLAN giữa Jetson và Host PC.
-- MoveIt 2, Gazebo, ROS camera bridge và `ros2_control` vẫn là extension points.
+- Ruff và mypy;
+- unit/integration test với coverage toàn core tối thiểu 85%;
+- coverage statement tối thiểu 90% riêng cho bốn nhóm không chồng lấn:
+  `runtime/config`, `domain/safety`, `runtime` (không gồm config) và `adapters`;
+- source release verifier;
+- byte-code compilation;
+- wheel build, isolated target install, import smoke và composition smoke hoàn
+  toàn từ resource đã đóng gói (strict config → builder → mock session → state).
 
-Trình tự triển khai thực tế:
+`tools/verify_release.py` kiểm tra canonical `AGENTS.md`/`PLANS.md`, physical
+layout, inventory owner/consumer, version, YAML/XML, dependency direction, safe
+default, dependency policy và deterministic model artifacts. Source gate dùng:
 
-```text
-unit test → mock → standalone camera test → RViz2/ROS graph
-→ robot thật biên độ nhỏ trong vùng trống → benchmark thực tế
+```bash
+.venv-core/bin/python tools/verify_release.py
 ```
+
+Trước khi đóng gói/tag release, bắt buộc chạy thêm:
+
+```bash
+.venv-core/bin/python tools/verify_release.py --release-ready
+```
+
+Chế độ `--release-ready` còn enforce budget asset; source verifier xanh không
+được diễn giải thành artifact release đã sẵn sàng.
+
+## ROS 2 Foxy local/headless gate
+
+ROS dùng môi trường riêng vì `launch_testing` của Foxy không tương thích pytest
+8 trong core environment:
+
+```bash
+./tools/bootstrap_ros.sh
+source /opt/ros/foxy/setup.bash
+rosdep install --from-paths ros2/src --ignore-src --rosdistro foxy -r -y
+./tools/test_ros.sh
+```
+
+`.venv-ros` dùng `/usr/bin/python3`, `--system-site-packages` và pytest 6.2.5.
+Gate build/test đúng sáu package active; custom-message và simulator scaffold
+không thuộc release. Gate cũng phải chạy test Pinocchio thật bằng package apt
+Foxy 2.6.17; test vendor-fake không thay bằng chứng native này.
+
+Sau colcon test, `tools/test_ros.sh` gọi `tools/ros_runtime_gate.py` trên
+install-space vừa build. Harness phải xác nhận lifecycle diagnostics khi chưa
+active, FollowJointTrajectory feedback/direct cancel trong lúc state publisher
+vẫn chạy, exact `/robot_description`, đủ canonical `/tf`/`/tf_static`, P4a
+network JSON/CSV budget sau tối thiểu 100 joint-state sample và hai camera
+Image/CameraInfo/static-TF/diagnostics với shutdown bounded.
+`tools/moveit_runtime_gate.py` sau đó chạy domain riêng cho plan-only và
+mock-execution, yêu cầu collision rejection, trajectory time tăng nghiêm ngặt,
+execution success và shutdown child sạch. `mock-cancel` được ghi rõ là blocker,
+không được bỏ qua bằng cách trộn nó vào passing report. Fast DDS cần quyền tạo
+graph loopback và đọc interface (`getifaddrs`); môi trường CI sandbox chặn
+network syscall phải cung cấp runner ROS phù hợp, không được bỏ qua live gate.
+
+## Gate cần môi trường ngoài source tree
+
+Các mục sau luôn giữ `[!]` cho tới khi có log/report từ đúng hệ thống:
+
+- MyArm M750 thật: identity, firmware, stop/cancel, low-amplitude motion và HIL;
+- camera thật: serial/by-id, calibration, unplug/replug và JetPack/OpenCV;
+- Jetson ↔ Host qua WLAN: discovery, latency/age, reconnect, clock offset và
+  bandwidth;
+- MoveIt execution trên robot thật và collision geometry review;
+- MoveIt-level cancel trên Foxy (direct driver-action cancel không thay cho
+  cancel qua `move_group`);
+- license/provenance của mesh, limits, inertial và payload.

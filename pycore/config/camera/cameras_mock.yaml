@@ -1,0 +1,61 @@
+config_version: 1
+profile: mock
+
+cameras:
+  mock_wrist_01:
+    enabled: true
+    backend: mock
+    identity:
+      model: deterministic_numpy_camera
+      serial: MOCK-WRIST-001
+    role: wrist
+    device_by_id: ""
+    stream:
+      width: 640
+      height: 480
+      fps: 15
+      pixel_format: bgr8
+    frames:
+      camera_frame: mock_wrist_01_link
+      optical_frame: mock_wrist_01_optical_frame
+    calibration_file: calibration/mock_640x480.yaml
+    extrinsics:
+      parent_frame: tool0
+      child_frame: mock_wrist_01_link
+      translation_m: [0.0, 0.0, 0.05]
+      quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+    reconnect:
+      read_timeout_s: 0.1
+      initial_backoff_s: 0.01
+      maximum_backoff_s: 0.1
+      multiplier: 2.0
+      maximum_attempts: 5
+
+  mock_shoulder_02:
+    enabled: true
+    backend: mock
+    identity:
+      model: deterministic_numpy_camera
+      serial: MOCK-SHOULDER-002
+    role: shoulder
+    device_by_id: ""
+    stream:
+      width: 640
+      height: 480
+      fps: 15
+      pixel_format: bgr8
+    frames:
+      camera_frame: mock_shoulder_02_link
+      optical_frame: mock_shoulder_02_optical_frame
+    calibration_file: calibration/mock_640x480.yaml
+    extrinsics:
+      parent_frame: base_link
+      child_frame: mock_shoulder_02_link
+      translation_m: [0.3, 0.0, 0.5]
+      quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+    reconnect:
+      read_timeout_s: 0.1
+      initial_backoff_s: 0.01
+      maximum_backoff_s: 0.1
+      multiplier: 2.0
+      maximum_attempts: 5

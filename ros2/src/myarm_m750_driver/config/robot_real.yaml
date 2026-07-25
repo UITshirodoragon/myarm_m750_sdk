@@ -1,7 +1,0 @@
-myarm_m750_driver:
-  ros__parameters:
-    # Override from launch. Keep absolute to avoid ambiguity across Jetson/Host.
-    core_config_file: ""
-    state_rate_hz: 5.0
-    publish_diagnostics: true
-    joint_state_topic: /joint_states

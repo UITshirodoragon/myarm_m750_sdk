@@ -1,3 +1,0 @@
-# ROS 2 itself must be installed through the ROS distribution/apt/rosdep.
-# This file intentionally lists only the Python Core dependency set.
--r base.txt

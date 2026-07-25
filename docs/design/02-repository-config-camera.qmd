@@ -5,7 +5,7 @@ format:
     toc: true
 ---
 
-# Repository layout 0.1.1
+# Repository layout
 
 ```text
 pycore/
@@ -17,7 +17,8 @@ pycore/
 │   ├── ports/
 │   ├── adapters/
 │   ├── runtime/
-│   └── diagnostics/
+│   ├── diagnostics/
+│   └── resources/
 ├── tests/
 └── pyproject.toml
 
@@ -27,9 +28,7 @@ ros2/src/
 ├── myarm_m750_bringup/
 ├── myarm_m750_visualization/
 ├── myarm_m750_camera/
-├── myarm_m750_moveit_config/
-├── myarm_m750_gazebo/
-└── myarm_m750_msgs/
+└── myarm_m750_moveit_config/
 ```
 
 Physical directory ngắn không đổi ROS package name hoặc Python import namespace:
@@ -50,66 +49,61 @@ Config thuộc package/subsystem sử dụng và validate nó:
 ```text
 pycore/config/
 ├── default.yaml
-├── default_real.yaml
+├── default_real.example.yaml
 ├── default_replay.yaml
 ├── robot_m750.yaml
 ├── safety.yaml
 ├── logging.yaml
 └── camera/
-    ├── cameras.yaml
+    ├── cameras_mock.yaml
+    ├── cameras_real.example.yaml
     └── calibration/
 
 ros2/src/myarm_m750_driver/config/            # ROS bridge parameters
 ros2/src/myarm_m750_bringup/config/           # deployment/network composition
-ros2/src/myarm_m750_visualization/config/     # RViz/marker behavior
+ros2/src/myarm_m750_visualization/config/     # Fast DDS/network probe contract
 ros2/src/myarm_m750_camera/config/            # ROS camera bridge parameters only
 ```
 
 Không tạo một global YAML chứa toàn bộ robot, camera, RViz, DDS và simulator.
 Mỗi loader fail-fast và trả immutable config/value object.
 
-# Requirements profiles
+# Dependency ownership
 
 ```text
 requirements/
-├── base.txt
-├── dev.txt
-├── camera.txt
-├── camera-host.txt
-├── camera-jetson.txt
-├── serial.txt
-├── simulation.txt
-├── ros2.txt
-└── all.txt
+└── constraints-py38.txt
 ```
 
 Nguyên tắc:
 
-- `base`: nhỏ nhất, không camera/serial/simulation.
-- Host có thể dùng OpenCV wheel; Jetson nên dùng OpenCV từ JetPack/apt và venv `--system-site-packages`.
-- dependency optional không được kéo vào production mặc định.
-- ROS 2 cài bằng apt/rosdep; `requirements/ros2.txt` không cố pip-install `rclpy`.
-- `pyproject.toml` vẫn là package metadata source of truth.
+- `pyproject.toml` là nguồn duy nhất cho dependency và các extra `dev`,
+  `serial`, `geometry-tools`, `camera-host`.
+- Constraint Python 3.8 khóa version đã chọn nhưng không lặp dependency declaration.
+- Host có thể dùng OpenCV wheel; Jetson dùng OpenCV từ JetPack/apt và
+  `.venv-ros --system-site-packages`.
+- ROS 2, Pinocchio và OpenCV Jetson được quản lý bằng apt/rosdep/JetPack; không
+  pip-install `rclpy`.
 
 # Camera naming
 
 Hardware name không chứa role:
 
 ```text
-logitech_c922_01
-logitech_c922_02
+mock_wrist_01
+mock_shoulder_02
 ```
 
 Các field tách riêng:
 
 ```yaml
-logitech_c922_01:
-  hardware_model: Logitech C922
-  hardware_serial: SERIAL_CAMERA_01
+mock_wrist_01:
+  backend: mock
+  identity:
+    model: deterministic_numpy_camera
+    serial: MOCK-WRIST-001
   role: wrist
-  device:
-    by_id: /dev/v4l/by-id/...
-    fallback_path: /dev/video0
+  device_by_id: ""
 ```
 
 Lợi ích:
@@ -122,16 +116,16 @@ Lợi ích:
 # Camera standalone pipeline
 
 ```text
-CameraSession
+CameraSessionBuilder / CameraSession
      ↓
-CameraPipeline
+independent CameraWorker
      ↓
 CameraCapturePort
      ↓
 MockCameraAdapter / OpenCvCameraAdapter
 ```
 
-Pipeline không import ROS 2. ROS package camera về sau chỉ chuyển frame core sang:
+Pipeline không import ROS 2. ROS package camera hiện chỉ chuyển frame core sang:
 
 - `sensor_msgs/msg/Image`;
 - `sensor_msgs/msg/CameraInfo`;
@@ -148,22 +142,38 @@ Pipeline không import ROS 2. ROS package camera về sau chỉ chuyển frame c
 # Config ví dụ
 
 ```yaml
+config_version: 1
+profile: real
 cameras:
   logitech_c922_01:
     enabled: true
-    hardware_model: Logitech C922
-    hardware_serial: SERIAL_CAMERA_01
+    backend: opencv
+    identity:
+      model: Logitech C922
+      serial: SERIAL_CAMERA_01
     role: wrist
-    device:
-      by_id: /dev/v4l/by-id/usb-...-video-index0
-      fallback_path: /dev/video0
+    device_by_id: /dev/v4l/by-id/usb-...-video-index0
     stream:
       width: 640
       height: 480
-      fps: 30
-      pixel_format: mjpeg
+      fps: 15
+      pixel_format: bgr8
     frames:
       camera_frame: logitech_c922_01_link
       optical_frame: logitech_c922_01_optical_frame
     calibration_file: calibration/logitech_c922_01.yaml
+    extrinsics:
+      parent_frame: tool0
+      child_frame: logitech_c922_01_link
+      translation_m: [0.0, 0.0, 0.05]
+      quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+    reconnect:
+      read_timeout_s: 0.2
+      initial_backoff_s: 0.1
+      maximum_backoff_s: 2.0
+      multiplier: 2.0
+      maximum_attempts: 10
 ```
+
+Không có fallback ngầm sang `/dev/video*`; identity, calibration và extrinsic
+phải thuộc deployment profile đã được review.

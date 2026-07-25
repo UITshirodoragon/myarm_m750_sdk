@@ -2,26 +2,27 @@
 
 from __future__ import annotations
 
-import logging
+import hashlib
 import math
 import xml.etree.ElementTree as element_tree
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
-
 from myarm_m750_core.domain.errors import KinematicsError
-from myarm_m750_core.domain.models import IkResult, JointLimits, RigidTransform
 from myarm_m750_core.domain.kinematics.math3d import (
     adjoint,
-    rotation_log_vector,
     transform_from_xyz_rpy,
     twist_exp,
 )
-from myarm_m750_core.ports.kinematics import KinematicsPort
-
-_LOGGER = logging.getLogger(__name__)
+from myarm_m750_core.domain.kinematics.model import fingerprint_urdf_path
+from myarm_m750_core.domain.kinematics.solver import (
+    DampedLeastSquaresSettings,
+    solve_damped_least_squares,
+)
+from myarm_m750_core.domain.models import IkResult, JointLimits, RigidTransform
+from myarm_m750_core.ports.kinematics import KinematicsInfo, KinematicsPort
 
 
 @dataclass(frozen=True)
@@ -73,7 +74,7 @@ def _parse_joint(joint_element: element_tree.Element) -> _UrdfJoint:
     limit_element = joint_element.find("limit")
     if joint_type in ("revolute", "prismatic"):
         if limit_element is None:
-            raise KinematicsError("Joint '{0}' is missing a limit element.".format(name))
+            raise KinematicsError(f"Joint '{name}' is missing a limit element.")
         lower_rad = float(limit_element.attrib["lower"])
         upper_rad = float(limit_element.attrib["upper"])
     elif joint_type == "continuous":
@@ -112,6 +113,7 @@ class PoeKinematics(KinematicsPort):
         ik_max_step_rad: float = 0.20,
         ik_position_tolerance_m: float = 1.0e-4,
         ik_orientation_tolerance_rad: float = 1.0e-3,
+        model_fingerprint_sha256: Optional[str] = None,
     ) -> None:
         self._joint_names = tuple(joint_names)
         self._screw_axes_space = np.asarray(screw_axes_space, dtype=float)
@@ -119,15 +121,31 @@ class PoeKinematics(KinematicsPort):
         self._joint_limits = joint_limits
         self._base_link = base_link
         self._end_link = end_link
-        self._ik_max_iterations = int(ik_max_iterations)
-        self._ik_damping = float(ik_damping)
-        self._ik_max_step_rad = float(ik_max_step_rad)
-        self._ik_position_tolerance_m = float(ik_position_tolerance_m)
-        self._ik_orientation_tolerance_rad = float(ik_orientation_tolerance_rad)
+        self._ik_settings = DampedLeastSquaresSettings(
+            max_iterations=int(ik_max_iterations),
+            damping=float(ik_damping),
+            max_step_rad=float(ik_max_step_rad),
+            position_tolerance_m=float(ik_position_tolerance_m),
+            orientation_tolerance_rad=float(ik_orientation_tolerance_rad),
+        )
         if self._screw_axes_space.shape != (6, 6):
             raise KinematicsError("Expected six 6D screw axes for the 6R arm.")
         if self._home_transform.shape != (4, 4):
             raise KinematicsError("home_transform must have shape (4, 4).")
+        if model_fingerprint_sha256 is None:
+            digest = hashlib.sha256()
+            digest.update(self._screw_axes_space.tobytes())
+            digest.update(self._home_transform.tobytes())
+            digest.update(repr(self._joint_limits).encode("utf-8"))
+            model_fingerprint_sha256 = digest.hexdigest()
+        self._info = KinematicsInfo(
+            provider_name="poe",
+            provider_version="numpy-reference-v1",
+            model_fingerprint_sha256=model_fingerprint_sha256,
+            base_link=base_link,
+            end_link=end_link,
+            joint_names=self._joint_names,
+        )
 
     @classmethod
     def from_urdf(
@@ -136,14 +154,14 @@ class PoeKinematics(KinematicsPort):
         base_link: str,
         end_link: str,
         joint_names: Sequence[str],
-    ) -> "PoeKinematics":
+    ) -> PoeKinematics:
         """Build screw axes, home pose, and limits from one URDF chain."""
         resolved_path = Path(urdf_path).expanduser().resolve()
         try:
             root = element_tree.parse(str(resolved_path)).getroot()
         except (OSError, element_tree.ParseError) as error:
             raise KinematicsError(
-                "Could not parse URDF {0}: {1}".format(resolved_path, error)
+                f"Could not parse URDF {resolved_path}: {error}"
             ) from error
 
         joints = [_parse_joint(element) for element in root.findall("joint")]
@@ -160,9 +178,8 @@ class PoeKinematics(KinematicsPort):
             joint = joint_by_child.get(current_link)
             if joint is None:
                 raise KinematicsError(
-                    "No URDF chain from '{0}' to '{1}'. Missing parent of '{2}'.".format(
-                        base_link, end_link, current_link
-                    )
+                    f"No URDF chain from '{base_link}' to '{end_link}'. "
+                    f"Missing parent of '{current_link}'."
                 )
             path_reverse.append(joint)
             current_link = joint.parent_link
@@ -176,12 +193,14 @@ class PoeKinematics(KinematicsPort):
         for joint in chain:
             joint_transform = current_transform.dot(joint.origin_transform)
             if joint.joint_type in ("revolute", "continuous"):
+                if joint.lower_rad is None or joint.upper_rad is None:
+                    raise KinematicsError(
+                        f"Joint '{joint.name}' is missing canonical position limits."
+                    )
                 axis_base = joint_transform[:3, :3].dot(joint.axis)
                 axis_norm = float(np.linalg.norm(axis_base))
                 if axis_norm < 1.0e-12:
-                    raise KinematicsError(
-                        "Joint '{0}' has a zero rotation axis.".format(joint.name)
-                    )
+                    raise KinematicsError(f"Joint '{joint.name}' has a zero rotation axis.")
                 angular = axis_base / axis_norm
                 point_m = joint_transform[:3, 3]
                 linear = -np.cross(angular, point_m)
@@ -190,11 +209,15 @@ class PoeKinematics(KinematicsPort):
                 lower_limits.append(float(joint.lower_rad))
                 upper_limits.append(float(joint.upper_rad))
             elif joint.joint_type == "prismatic":
+                if joint.lower_rad is None or joint.upper_rad is None:
+                    raise KinematicsError(
+                        f"Joint '{joint.name}' is missing canonical position limits."
+                    )
                 axis_base = joint_transform[:3, :3].dot(joint.axis)
                 axis_norm = float(np.linalg.norm(axis_base))
                 if axis_norm < 1.0e-12:
                     raise KinematicsError(
-                        "Joint '{0}' has a zero translation axis.".format(joint.name)
+                        f"Joint '{joint.name}' has a zero translation axis."
                     )
                 screw_axes.append(
                     np.concatenate((np.zeros(3, dtype=float), axis_base / axis_norm))
@@ -204,24 +227,21 @@ class PoeKinematics(KinematicsPort):
                 upper_limits.append(float(joint.upper_rad))
             elif joint.joint_type != "fixed":
                 raise KinematicsError(
-                    "Unsupported URDF joint type '{0}' on the selected chain.".format(
-                        joint.joint_type
-                    )
+                    f"Unsupported URDF joint type '{joint.joint_type}' "
+                    "on the selected chain."
                 )
             current_transform = joint_transform
 
         expected_names = tuple(joint_names)
         if tuple(parsed_actuated_names) != expected_names:
             raise KinematicsError(
-                "URDF actuated chain order {0} does not match config {1}.".format(
-                    parsed_actuated_names, list(expected_names)
-                )
+                f"URDF actuated chain order {parsed_actuated_names} "
+                f"does not match config {list(expected_names)}."
             )
         if len(screw_axes) != 6:
             raise KinematicsError(
-                "Selected chain must contain exactly six actuated joints; got {0}.".format(
-                    len(screw_axes)
-                )
+                "Selected chain must contain exactly six actuated joints; "
+                f"got {len(screw_axes)}."
             )
         screw_matrix = np.column_stack(screw_axes)
         return cls(
@@ -233,7 +253,13 @@ class PoeKinematics(KinematicsPort):
             ),
             base_link=base_link,
             end_link=end_link,
+            model_fingerprint_sha256=fingerprint_urdf_path(resolved_path),
         )
+
+    @property
+    def info(self) -> KinematicsInfo:
+        """Return reference-backend and normalized model metadata."""
+        return self._info
 
     @property
     def joint_limits(self) -> JointLimits:
@@ -263,9 +289,7 @@ class PoeKinematics(KinematicsPort):
         transform_matrix = np.eye(4, dtype=float)
         for joint_index in range(6):
             transform_matrix = transform_matrix.dot(
-                twist_exp(
-                    self._screw_axes_space[:, joint_index], joint_array[joint_index]
-                )
+                twist_exp(self._screw_axes_space[:, joint_index], joint_array[joint_index])
             )
         return transform_matrix.dot(self._home_transform)
 
@@ -319,73 +343,14 @@ class PoeKinematics(KinematicsPort):
         target: RigidTransform,
         seed_joint_position_rad: Sequence[float],
     ) -> IkResult:
-        """Solve numerical IK using damped least squares.
-
-        The error vector is expressed in the base frame and combines a rotation
-        logarithm with Cartesian position error. The solver is deterministic,
-        clamps each iteration, and never sends hardware commands.
-        """
-        joint_array = self._joint_array(seed_joint_position_rad).copy()
-        target_matrix = target.as_matrix()
-        lower_rad = np.asarray(self._joint_limits.lower_rad, dtype=float)
-        upper_rad = np.asarray(self._joint_limits.upper_rad, dtype=float)
-        joint_array = np.clip(joint_array, lower_rad, upper_rad)
-        position_error_norm = math.inf
-        orientation_error_norm = math.inf
-
-        for iteration in range(self._ik_max_iterations + 1):
-            current_matrix = self._fk_matrix(joint_array)
-            position_error = target_matrix[:3, 3] - current_matrix[:3, 3]
-            rotation_error_matrix = target_matrix[:3, :3].dot(
-                current_matrix[:3, :3].T
-            )
-            orientation_error = rotation_log_vector(rotation_error_matrix)
-            position_error_norm = float(np.linalg.norm(position_error))
-            orientation_error_norm = float(np.linalg.norm(orientation_error))
-            if (
-                position_error_norm <= self._ik_position_tolerance_m
-                and orientation_error_norm <= self._ik_orientation_tolerance_rad
-            ):
-                return IkResult(
-                    succeeded=True,
-                    joint_position_rad=tuple(joint_array),
-                    iterations=iteration,
-                    position_error_m=position_error_norm,
-                    orientation_error_rad=orientation_error_norm,
-                    message="IK converged.",
-                )
-
-            error_vector = np.concatenate((orientation_error, position_error))
-            jacobian = self.compute_jacobian(joint_array)
-            regularized = jacobian.dot(jacobian.T) + (
-                self._ik_damping * self._ik_damping
-            ) * np.eye(6, dtype=float)
-            try:
-                joint_delta = jacobian.T.dot(
-                    np.linalg.solve(regularized, error_vector)
-                )
-            except np.linalg.LinAlgError:
-                joint_delta = np.linalg.pinv(jacobian, rcond=1.0e-5).dot(
-                    error_vector
-                )
-            delta_norm = float(np.linalg.norm(joint_delta))
-            if delta_norm > self._ik_max_step_rad:
-                joint_delta *= self._ik_max_step_rad / delta_norm
-            joint_array = np.clip(joint_array + joint_delta, lower_rad, upper_rad)
-
-        _LOGGER.warning(
-            "ik_did_not_converge",
-            extra={
-                "position_error_m": position_error_norm,
-                "orientation_error_rad": orientation_error_norm,
-                "iterations": self._ik_max_iterations,
-            },
-        )
-        return IkResult(
-            succeeded=False,
-            joint_position_rad=tuple(joint_array),
-            iterations=self._ik_max_iterations,
-            position_error_m=position_error_norm,
-            orientation_error_rad=orientation_error_norm,
-            message="IK did not converge within the configured iteration limit.",
+        """Solve deterministic IK through the shared DLS implementation."""
+        return solve_damped_least_squares(
+            target=target,
+            seed_joint_position_rad=seed_joint_position_rad,
+            joint_limits=self._joint_limits,
+            compute_fk_matrix=self._fk_matrix,
+            compute_jacobian=self.compute_jacobian,
+            settings=self._ik_settings,
+            expected_parent_frame=self._base_link,
+            expected_child_frame=self._end_link,
         )

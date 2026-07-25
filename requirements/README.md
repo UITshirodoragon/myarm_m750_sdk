@@ -1,28 +1,27 @@
-# Requirements profiles
+# Dependency policy
 
-Các file trong thư mục này là profile cài đặt theo use case, không phải một bộ
-phụ thuộc bắt buộc duy nhất.
+`pycore/pyproject.toml` là nguồn duy nhất khai báo dependency và optional extra.
+Không tạo lại các profile `.txt` lặp dependency vì chúng dễ lệch version và
+platform marker.
+
+| Extra | Dùng cho |
+|---|---|
+| `dev` | Ruff, mypy, pytest và coverage |
+| `serial` | robot thật qua vendor serial adapter |
+| `geometry-tools` | pytransform3d cho kiểm tra model/frame offline |
+| `camera-host` | OpenCV wheel trên Host PC/x86 |
+
+`constraints-py38.txt` khóa các direct dependency đã chọn cho target ARM64,
+Ubuntu 20.04 và Python 3.8. File này là constraint, không phải danh sách cài đặt:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r requirements/dev.txt
+./tools/bootstrap_core.sh
+.venv-core/bin/python -m pip install \
+  --constraint requirements/constraints-py38.txt \
+  --editable 'pycore[geometry-tools]'
 ```
 
-| Profile | Dùng cho |
-|---|---|
-| `base.txt` | Python Core, mock, replay, FK/IK và unit test tối thiểu |
-| `dev.txt` | lint, type check, coverage và test phát triển |
-| `camera.txt` | generic camera profile; tránh thay JetPack OpenCV trên aarch64 |
-| `camera-host.txt` | OpenCV wheel cho Host PC/x86 |
-| `camera-jetson.txt` | dùng OpenCV do JetPack/apt cung cấp |
-| `serial.txt` | robot thật qua vendor serial adapter |
-| `simulation.txt` | MuJoCo extension |
-| `ros2.txt` | nhắc rõ ROS 2 được quản lý bằng apt/rosdep, không cài `rclpy` bằng pip |
-| `all.txt` | môi trường phát triển đầy đủ, không khuyến nghị cho Jetson production |
-
-`pycore/pyproject.toml` vẫn là nguồn chính cho metadata package. Các profile ở
-đây giúp tạo venv theo deployment mà không kéo phụ thuộc camera, simulation hoặc
-robot thật vào môi trường tối thiểu.
-
-Trên Jetson nên tạo venv bằng `python3 -m venv --system-site-packages .venv` để dùng bản `cv2` đi cùng JetPack, thay vì ghi đè bằng wheel PyPI.
+ROS 2 Foxy, Pinocchio và OpenCV trên Jetson được cài bằng apt/rosdep/JetPack,
+không bằng pip. Dùng `./tools/bootstrap_ros.sh` để tạo `.venv-ros` với
+`--system-site-packages`; không cài một bản `rclpy`, Pinocchio hoặc OpenCV khác
+đè lên system package.

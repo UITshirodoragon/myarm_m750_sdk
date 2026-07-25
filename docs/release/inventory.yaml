@@ -1,0 +1,249 @@
+inventory_version: 1
+
+# Entries classify repository prefixes.  When prefixes overlap, the most
+# specific entry owns the file.
+entries:
+  - path: .editorconfig
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: contributors
+  - path: .github
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: github-actions
+  - path: .gitignore
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: contributors
+  - path: AGENTS.md
+    classification: active
+    release: true
+    owner: maintainers
+    consumer: contributors-and-coding-agents
+  - path: CHANGELOG.md
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: sdk-users
+  - path: LICENSE
+    classification: active
+    release: true
+    owner: maintainers
+    consumer: sdk-users
+  - path: PLANS.md
+    classification: active
+    release: true
+    owner: maintainers
+    consumer: contributors
+  - path: README.md
+    classification: active
+    release: true
+    owner: maintainers
+    consumer: sdk-users
+  - path: VERSION
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: build-and-release-tools
+  - path: benchmarks
+    classification: optional
+    release: true
+    owner: runtime-maintainers
+    consumer: performance-validation
+  - path: docs
+    classification: active
+    release: true
+    owner: maintainers
+    consumer: contributors-and-sdk-users
+  - path: examples
+    classification: optional
+    release: true
+    owner: api-maintainers
+    consumer: sdk-users
+  - path: pycore
+    classification: active
+    release: true
+    owner: core-maintainers
+    consumer: python-sdk-and-ros-bridges
+  - path: pycore/config/camera
+    classification: optional
+    release: true
+    owner: camera-maintainers
+    consumer: standalone-camera
+  - path: pycore/src/adapters/camera
+    classification: optional
+    release: true
+    owner: camera-maintainers
+    consumer: standalone-camera
+  - path: requirements
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: bootstrap-and-ci
+  - path: ros2/README.md
+    classification: active
+    release: true
+    owner: ros-maintainers
+    consumer: ros-deployers
+  - path: ros2/src/myarm_m750_bringup
+    classification: active
+    release: true
+    owner: ros-maintainers
+    consumer: jetson-deployment
+  - path: ros2/src/myarm_m750_camera
+    classification: active
+    release: true
+    owner: camera-maintainers
+    consumer: ros-camera-deployment
+  - path: ros2/src/myarm_m750_description
+    classification: active
+    release: true
+    owner: model-maintainers
+    consumer: core-ros-rviz-and-moveit
+  - path: ros2/src/myarm_m750_driver
+    classification: active
+    release: true
+    owner: ros-driver-maintainers
+    consumer: jetson-deployment
+  - path: ros2/src/myarm_m750_moveit_config
+    classification: active
+    release: true
+    owner: planning-maintainers
+    consumer: moveit-deployment
+  - path: ros2/src/myarm_m750_visualization
+    classification: active
+    release: true
+    owner: visualization-maintainers
+    consumer: host-rviz-deployment
+  - path: tools
+    classification: active
+    release: true
+    owner: release-engineering
+    consumer: contributors-and-ci
+
+  # Generated paths may exist locally but must never be tracked or released.
+  - path: .coverage
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-quality-gate
+  - path: .mypy_cache
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: mypy
+  - path: .pytest_cache
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: pytest
+  - path: .ruff_cache
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: ruff
+  - path: .venv-core
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: core-quality-gate
+  - path: .venv-ros
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: ros-foxy-quality-gate
+  - path: build
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-build
+  - path: install
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-build
+  - path: log
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-build
+  - path: logs
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: runtime-diagnostics
+  - path: pycore/build
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: python-build
+  - path: pycore/.pytest_cache
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: pytest
+  - path: pycore/.ruff_cache
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: ruff
+  - path: pycore/dist
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: python-build
+  - path: pycore/myarm_m750_core.egg-info
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: python-build
+  - path: ros2/build
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-ros-build
+  - path: ros2/install
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-ros-build
+  - path: ros2/log
+    classification: generated
+    release: false
+    owner: release-engineering
+    consumer: local-ros-build
+
+  # Legacy/scaffold paths are kept only as negative release guards.
+  - path: agent.md
+    classification: legacy
+    release: false
+    owner: release-engineering
+    consumer: migration-guard
+  - path: plans.md
+    classification: legacy
+    release: false
+    owner: release-engineering
+    consumer: migration-guard
+  - path: docker
+    classification: legacy
+    release: false
+    owner: release-engineering
+    consumer: migration-guard
+  - path: simulation
+    classification: legacy
+    release: false
+    owner: release-engineering
+    consumer: migration-guard
+  - path: ros2/src/myarm_m750_gazebo
+    classification: legacy
+    release: false
+    owner: release-engineering
+    consumer: migration-guard
+  - path: ros2/src/myarm_m750_msgs
+    classification: legacy
+    release: false
+    owner: release-engineering
+    consumer: migration-guard

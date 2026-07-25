@@ -1,4 +1,4 @@
-"""Optional OpenCV camera capture adapter."""
+"""Optional OpenCV V4L capture adapter."""
 
 from __future__ import annotations
 
@@ -6,20 +6,14 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from myarm_m750_core.domain.camera import (
-    CameraConfig,
-    CameraFrame,
-    CameraReadResult,
-)
+import numpy as np
+from myarm_m750_core.domain.camera import CameraConfig, CameraFrame
+from myarm_m750_core.domain.errors import CameraCaptureError, CameraTimeoutError
+from myarm_m750_core.ports.camera import CameraCapturePort
 
 
-class OpenCvCameraAdapter:
-    """Capture one V4L camera without importing ROS 2.
-
-    OpenCV is imported lazily so control-only deployments do not need camera
-    dependencies. The adapter prefers ``/dev/v4l/by-id`` and uses the fallback
-    device only when the stable path is unavailable.
-    """
+class OpenCvCameraAdapter(CameraCapturePort):
+    """Capture one stable by-id camera without importing ROS 2."""
 
     def __init__(self) -> None:
         self._cv2: Optional[Any] = None
@@ -29,6 +23,7 @@ class OpenCvCameraAdapter:
 
     @property
     def is_open(self) -> bool:
+        """Return whether OpenCV reports an open device."""
         return bool(self._capture is not None and self._capture.isOpened())
 
     @staticmethod
@@ -36,65 +31,114 @@ class OpenCvCameraAdapter:
         try:
             import cv2  # type: ignore[import-not-found]
         except ImportError as error:
-            raise RuntimeError(
-                "OpenCV camera backend is optional. Install requirements/camera.txt."
+            raise CameraCaptureError(
+                "OpenCV is optional; install myarm-m750-core[camera-host] "
+                "or use the JetPack system package."
             ) from error
         return cv2
 
-    @staticmethod
-    def _select_device(config: CameraConfig) -> str:
-        by_id = Path(config.device_by_id)
-        if by_id.exists():
-            return str(by_id)
-        if config.fallback_path:
-            return config.fallback_path
-        raise FileNotFoundError(
-            "Camera device does not exist and no fallback is configured: {0}".format(
-                config.device_by_id
-            )
-        )
-
     def open(self, config: CameraConfig) -> None:
+        """Open the configured by-id resource idempotently."""
         if self.is_open:
-            raise RuntimeError("Camera is already open.")
+            if self._config == config:
+                return
+            raise CameraCaptureError("OpenCV adapter already owns another camera.")
+        if not Path(config.device_by_id).exists():
+            raise CameraCaptureError(
+                f"Camera by-id resource does not exist: {config.device_by_id}"
+            )
         cv2 = self._load_cv2()
-        device = self._select_device(config)
-        capture = cv2.VideoCapture(device)
+        capture = cv2.VideoCapture(config.device_by_id)
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, config.stream.width_px)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, config.stream.height_px)
         capture.set(cv2.CAP_PROP_FPS, config.stream.fps_hz)
         if not capture.isOpened():
             capture.release()
-            raise RuntimeError("Could not open camera device: {0}".format(device))
+            raise CameraCaptureError(f"Could not open camera device: {config.device_by_id}")
         self._cv2 = cv2
         self._capture = capture
         self._config = config
-        self._sequence = 0
 
-    def read(self, timeout_s: float) -> CameraReadResult:
+    def _convert_frame(self, image: Any, config: CameraConfig) -> np.ndarray:
+        if not isinstance(image, np.ndarray):
+            raise CameraCaptureError("OpenCV returned a non-NumPy camera frame.")
+        if image.dtype != np.uint8:
+            raise CameraCaptureError(
+                f"OpenCV returned {image.dtype}; raw camera frames must use uint8."
+            )
+        if image.ndim < 2 or image.shape[:2] != (
+            config.stream.height_px,
+            config.stream.width_px,
+        ):
+            raise CameraCaptureError(
+                "OpenCV frame dimensions do not match the configured stream: "
+                f"expected {config.stream.height_px}x{config.stream.width_px}, "
+                f"observed {image.shape}."
+            )
+
+        pixel_format = config.stream.pixel_format
+        if pixel_format == "mono8":
+            if image.ndim == 2:
+                return np.ascontiguousarray(image)
+            if image.ndim == 3 and image.shape[2] == 3:
+                cv2 = self._cv2
+                if cv2 is None:
+                    raise CameraCaptureError("OpenCV conversion backend is unavailable.")
+                converted = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                return np.ascontiguousarray(converted)
+            raise CameraCaptureError(
+                f"mono8 requires an HxW or HxWx3 source; observed {image.shape}."
+            )
+
+        if image.ndim != 3 or image.shape[2] != 3:
+            raise CameraCaptureError(
+                f"{pixel_format} requires an HxWx3 source; observed {image.shape}."
+            )
+        if pixel_format == "rgb8":
+            cv2 = self._cv2
+            if cv2 is None:
+                raise CameraCaptureError("OpenCV conversion backend is unavailable.")
+            converted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            return np.ascontiguousarray(converted)
+        if pixel_format == "bgr8":
+            return np.ascontiguousarray(image)
+        raise CameraCaptureError(f"Unsupported configured pixel format: {pixel_format}")
+
+    def read_frame(self, timeout_s: float) -> CameraFrame:
+        """Read until a bounded deadline or raise CameraTimeoutError."""
         if timeout_s <= 0.0:
             raise ValueError("timeout_s must be positive.")
-        if not self.is_open or self._capture is None or self._config is None:
-            return CameraReadResult(frame=None, timed_out=False, error="camera_not_open")
-
+        capture = self._capture
+        config = self._config
+        if not self.is_open or capture is None or config is None:
+            raise CameraCaptureError("OpenCV camera is not open.")
         deadline_s = time.monotonic() + timeout_s
         while time.monotonic() < deadline_s:
-            succeeded, image = self._capture.read()
-            if succeeded:
-                self._sequence += 1
+            succeeded, image = capture.read()
+            if succeeded and image is not None:
+                converted = self._convert_frame(image, config)
+                next_sequence = self._sequence + 1
                 frame = CameraFrame(
-                    camera_name=self._config.hardware_name,
-                    sequence=self._sequence,
-                    timestamp_monotonic_s=time.monotonic(),
-                    image=image,
-                    metadata={"backend": "opencv"},
+                    camera_name=config.hardware_name,
+                    sequence=next_sequence,
+                    acquisition_monotonic_s=time.monotonic(),
+                    observation_wall_time_s=time.time(),
+                    image=converted,
+                    encoding=config.stream.pixel_format,
+                    metadata={
+                        "backend": "opencv",
+                        "serial": config.hardware_serial,
+                    },
                 )
-                return CameraReadResult(frame=frame, timed_out=False)
+                self._sequence = next_sequence
+                return frame
             time.sleep(min(0.005, timeout_s))
-        return CameraReadResult(frame=None, timed_out=True, error="camera_read_timeout")
+        raise CameraTimeoutError(f"Camera read exceeded {timeout_s:.3f}s.")
 
     def close(self) -> None:
+        """Release OpenCV resources idempotently."""
         if self._capture is not None:
             self._capture.release()
+        self._cv2 = None
         self._capture = None
         self._config = None

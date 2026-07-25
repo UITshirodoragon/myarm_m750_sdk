@@ -4,32 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "myarm-m750-core"
-version = "0.1.1"
+version = "0.2.0"
 description = "ROS-optional Python core for MyArm M750 control, kinematics, safety, camera capture, and trajectory execution."
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{name = "Nguyen Hoang Dang Khoa"}]
 dependencies = [
-  "numpy>=1.21",
-  "PyYAML>=5.4",
+  "numpy>=1.21,<1.25",
+  "PyYAML>=5.4,<7",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=7",
-  "pytest-cov>=4",
+  "pytest>=7,<8",
+  "pytest-cov>=4,<6",
   "ruff>=0.4",
   "mypy>=1.8",
-]
-camera = [
-  "opencv-python>=4.5; platform_machine != 'aarch64'",
+  "types-PyYAML>=6.0",
 ]
 serial = [
   "pyserial>=3.5",
-  "pymycobot>=3.6",
+  "pymycobot==4.0.5",
 ]
-simulation = [
-  "mujoco>=2.3",
+geometry-tools = [
+  "pytransform3d==3.16.0",
+]
+camera-host = [
+  "opencv-python>=4.5,<4.9; platform_machine != 'aarch64'",
 ]
 
 [tool.setuptools]
@@ -46,13 +47,16 @@ packages = [
   "myarm_m750_core.ports",
   "myarm_m750_core.adapters",
   "myarm_m750_core.adapters.camera",
+  "myarm_m750_core.adapters.kinematics",
   "myarm_m750_core.runtime",
   "myarm_m750_core.runtime.config",
   "myarm_m750_core.diagnostics",
+  "myarm_m750_core.resources",
 ]
 
 [tool.setuptools.package-data]
 myarm_m750_core = ["py.typed"]
+"myarm_m750_core.resources" = ["*.urdf", "*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -64,7 +68,7 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-ignore = ["UP006", "UP007", "UP035"]
+ignore = ["UP006", "UP007", "UP035", "UP045"]
 
 [tool.mypy]
 python_version = "3.8"

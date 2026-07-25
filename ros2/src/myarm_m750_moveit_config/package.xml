@@ -1,11 +1,23 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>myarm_m750_moveit_config</name>
-  <version>0.1.1</version>
-  <description>MoveIt 2 configuration extension point for MyArm M750.</description>
+  <version>0.2.0</version>
+  <description>Manual ROS 2 Foxy MoveIt planning and SDK-routed mock execution.</description>
   <maintainer email="khoa@example.invalid">Nguyen Hoang Dang Khoa</maintainer>
   <license>LicenseRef-Proprietary</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
   <exec_depend>myarm_m750_description</exec_depend>
+  <exec_depend>myarm_m750_driver</exec_depend>
+  <exec_depend>moveit_kinematics</exec_depend>
+  <exec_depend>moveit_planners_ompl</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>moveit_simple_controller_manager</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <test_depend>ament_cmake_test</test_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>

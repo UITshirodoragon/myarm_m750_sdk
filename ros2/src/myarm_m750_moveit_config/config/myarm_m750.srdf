@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<robot name="myarm_m750">
+  <group name="arm">
+    <chain base_link="base_link" tip_link="tool0"/>
+  </group>
+  <group_state name="home" group="arm">
+    <joint name="shoulder_pan_joint" value="0"/>
+    <joint name="shoulder_lift_joint" value="0"/>
+    <joint name="elbow_flex_joint" value="0"/>
+    <joint name="forearm_roll_joint" value="0"/>
+    <joint name="wrist_flex_joint" value="0"/>
+    <joint name="wrist_roll_joint" value="0"/>
+  </group_state>
+  <disable_collisions link1="base_link" link2="shoulder_link" reason="Adjacent"/>
+  <disable_collisions link1="shoulder_link" link2="upper_arm_link" reason="Adjacent"/>
+  <disable_collisions link1="upper_arm_link" link2="lower_arm_link" reason="Adjacent"/>
+  <disable_collisions link1="lower_arm_link" link2="forearm_link" reason="Adjacent"/>
+  <disable_collisions link1="forearm_link" link2="wrist_link" reason="Adjacent"/>
+  <disable_collisions link1="wrist_link" link2="flange_link" reason="Adjacent"/>
+  <disable_collisions link1="flange_link" link2="tool0" reason="Adjacent"/>
+  <disable_collisions link1="flange_link" link2="gripper_base_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_base_link" link2="left_gripper_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_base_link" link2="right_gripper_link" reason="Adjacent"/>
+  <!-- Coarse primitives overlap across the fixed wrist/gripper assembly. -->
+  <disable_collisions link1="wrist_link" link2="gripper_base_link" reason="Default"/>
+  <!-- Finger-to-finger contact is an intended closed-gripper condition. -->
+  <disable_collisions link1="left_gripper_link" link2="right_gripper_link" reason="Default"/>
+</robot>

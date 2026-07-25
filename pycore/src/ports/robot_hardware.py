@@ -5,11 +5,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from myarm_m750_core.domain.models import (
+    AdapterCapabilities,
+    CommandContext,
     CommandResult,
+    HardwareIdentity,
     HardwareStatus,
     JointState,
     JointTarget,
-    RobotCapabilities,
 )
 
 
@@ -25,29 +27,27 @@ class RobotHardwarePort(ABC):
         """Release backend resources."""
 
     @abstractmethod
-    def read_state(self) -> JointState:
+    def read_joint_state(self, context: CommandContext) -> JointState:
         """Read measured canonical joint positions."""
 
     @abstractmethod
-    def write_joint_target(self, target: JointTarget) -> CommandResult:
+    def write_joint_target(
+        self, target: JointTarget, context: CommandContext
+    ) -> CommandResult:
         """Send an already validated canonical joint target."""
 
     @abstractmethod
-    def stop(self) -> CommandResult:
+    def stop(self, context: CommandContext) -> CommandResult:
         """Stop motion with the strongest capability provided by the backend."""
 
     @abstractmethod
-    def pause(self) -> CommandResult:
-        """Pause motion when supported."""
-
-    @abstractmethod
-    def resume(self) -> CommandResult:
-        """Resume motion when supported."""
-
-    @abstractmethod
-    def capabilities(self) -> RobotCapabilities:
+    def capabilities(self) -> AdapterCapabilities:
         """Return explicit backend capabilities."""
 
     @abstractmethod
-    def status(self) -> HardwareStatus:
+    def read_hardware_status(self) -> HardwareStatus:
         """Return current adapter diagnostics."""
+
+    @abstractmethod
+    def probe_identity(self, context: CommandContext) -> HardwareIdentity:
+        """Read backend identity without sending a motion command."""

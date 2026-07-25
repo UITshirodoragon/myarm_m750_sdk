@@ -1,3 +1,0 @@
-# Required for the ROS-independent control and kinematics core.
-numpy>=1.21
-PyYAML>=5.4

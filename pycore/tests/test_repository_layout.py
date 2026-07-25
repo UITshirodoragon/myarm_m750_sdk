@@ -24,8 +24,6 @@ def test_requested_ros2_layout(repository_root: Path) -> None:
         "myarm_m750_visualization",
         "myarm_m750_camera",
         "myarm_m750_moveit_config",
-        "myarm_m750_gazebo",
-        "myarm_m750_msgs",
     }
     source_root = repository_root / "ros2/src"
     assert expected == {path.name for path in source_root.iterdir() if path.is_dir()}

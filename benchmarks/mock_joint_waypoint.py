@@ -8,7 +8,7 @@ import time
 
 import yaml
 
-from myarm_m750_core import RobotSession
+from myarm_m750_core import MotionProfile, RobotSessionBuilder
 
 
 def main() -> None:
@@ -19,12 +19,15 @@ def main() -> None:
     with open(arguments.benchmark_config, "r", encoding="utf-8") as stream:
         config = yaml.safe_load(stream)["benchmark"]
 
-    with RobotSession.from_config(arguments.sdk_config) as robot:
+    with RobotSessionBuilder.from_file(arguments.sdk_config).build() as robot:
         for repetition in range(int(config["repetitions"])):
             for waypoint_index, waypoint in enumerate(config["waypoints_rad"]):
                 start_s = time.monotonic()
-                result = robot.move_joints(waypoint, float(config["duration_s"]))
-                measured = robot.get_state()
+                result = robot.move_joints(
+                    waypoint,
+                    MotionProfile(float(config["duration_s"])),
+                )
+                measured = robot.read_joint_state()
                 payload = {
                     "repetition": repetition,
                     "waypoint_index": waypoint_index,
