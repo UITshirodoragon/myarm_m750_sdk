@@ -13,7 +13,9 @@ setup(
         ("share/" + package_name + "/rviz", glob("rviz/*.rviz")),
         ("share/" + package_name + "/config", glob("config/*.yaml")),
     ],
-    install_requires=["setuptools"],
+    # The marker node imports PoeKinematics from the ROS-independent core.
+    # Install it with the same interpreter that builds/runs this ROS package.
+    install_requires=["setuptools", "myarm-m750-core"],
     zip_safe=True,
     maintainer="Nguyen Hoang Dang Khoa",
     maintainer_email="khoa@example.invalid",

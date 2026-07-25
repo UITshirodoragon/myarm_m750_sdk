@@ -4,26 +4,28 @@ ROS 2 is the deployment and integration layer. It is not the owner of robot
 kinematics, safety, trajectory generation, hardware mapping, or standalone
 camera capture.
 
-Install Python Core into the same Python environment before building:
+Install Python Core with the exact interpreter used by ROS 2 before building.
+On ROS Foxy this is normally `/usr/bin/python3`; do not rely on `pip list` from
+an activated virtual environment.
 
 ```bash
-python3 -m pip install -e ../pycore
 source /opt/ros/foxy/setup.bash
+/usr/bin/python3 -m pip install --user -e ../pycore
+/usr/bin/python3 -c "import myarm_m750_core; print(myarm_m750_core.__file__)"
 rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-Physical package folders are short, while package names remain explicit in
-`package.xml`:
+The physical package folder and package name are identical:
 
 ```text
-description     -> myarm_m750_description
-driver          -> myarm_m750_driver
-bringup         -> myarm_m750_bringup
-visualization   -> myarm_m750_visualization
-camera          -> myarm_m750_camera
-moveit_config   -> myarm_m750_moveit_config
-gazebo          -> myarm_m750_gazebo
-msgs            -> myarm_m750_msgs
+myarm_m750_description
+myarm_m750_driver
+myarm_m750_bringup
+myarm_m750_visualization
+myarm_m750_camera
+myarm_m750_moveit_config
+myarm_m750_gazebo
+myarm_m750_msgs
 ```
