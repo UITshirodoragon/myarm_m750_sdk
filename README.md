@@ -137,10 +137,12 @@ colcon build \
 source install/setup.bash
 ```
 
-Trên máy host chạy các lệnh:
+Trên máy host chạy các lệnh. Phải dùng đúng `/usr/bin/python3` mà ROS Foxy
+dùng để chạy node; `pip list` trong venv khác không làm ROS import được core.
 
 ```bash
-python3 -m pip install -e pycore
+/usr/bin/python3 -m pip install --user -e pycore
+/usr/bin/python3 -c "import myarm_m750_core; print(myarm_m750_core.__file__)"
 cd ros2
 source /opt/ros/foxy/setup.bash 
 rosdep install \
